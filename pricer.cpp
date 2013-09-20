@@ -129,7 +129,9 @@ struct OrderBook {
             Order o(m);
             orders[m.ID] = o;
             BookLookup * l = lookup_reference[m.otype];
-            (*l)[m.ID] = &(orders[m.ID]);
+            Order* o_ptr = &(orders[m.ID]);
+            //(*l)[m.ID] = o_ptr;
+            l->insert({m.ID,o_ptr});
             if(o.type == OrderType::ASK) total_asks += o.size;
             else if(o.type == OrderType::BID) total_bids += o.size;
         } else {
