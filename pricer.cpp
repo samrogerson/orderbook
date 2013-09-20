@@ -6,6 +6,7 @@
 #include <iterator>
 #include <cstdint>
 #include <cstdlib>
+#include <cmath>
 #include <utility>
 #include <map>
 
@@ -139,8 +140,8 @@ struct OrderBook {
                 total_bids -= deduction;
             }
             if(id_order->second.size<=0) {
-                orders.erase(id_order->first);
                 lookup_reference[id_order->second.type]->erase(id_order->first);
+                orders.erase(id_order->first);
             }
         } else {
             std::cerr <<
@@ -199,9 +200,10 @@ class TransactionManager {
                 transactions.push_back({p->first, selling});
                 total_takings += selling * price;
             }
-            if(total_takings > earnings) {
-                earnings = total_takings;
-                sales = transactions;
+            double diff = fabs(total_takings - earnings);
+            earnings = total_takings;
+            sales = transactions;
+            if(diff > 0.01) {
                 std::cout << time << " S " << earnings <<  std::endl;
             }
             return total_takings;
@@ -225,11 +227,11 @@ class TransactionManager {
                 total_price += buying * price;
                 p++;
             }
-            if(total_price < expenditure || expenditure < 0) {
-                expenditure = total_price;
-                purchases = transactions;
-                std::cout << time << " B " << expenditure <<
-                    std::endl;
+            double diff = fabs(total_price - expenditure);
+            expenditure = total_price;
+            purchases = transactions;
+            if(diff > 0.01) {
+                std::cout << time << " B " << expenditure << std::endl;
             }
             return total_price;
         }
@@ -283,7 +285,6 @@ class TransactionManager {
         int process() {
             std::string line;
             std::vector<Message> messages;
-            bool fetch = true;
             std::getline(*stream,line);
             nmessages++;
             OrderTokens tokens = tokenize(line);
