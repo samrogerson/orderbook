@@ -77,6 +77,7 @@ struct Order {
 };
 
 struct LookupCompare {
+        // sort iterable of pairs of <ID, Order> by increasing price.
         bool operator()(const LookupEntry &lhs, const LookupEntry &rhs) {
             return lhs.second->price < rhs.second->price;
         }
@@ -161,37 +162,62 @@ class TransactionManager {
     public:
         TransactionManager(int target, std::istream &input_stream) :
             nmessages(0), target_size(target), stream(&input_stream),
-            purchase_state(false), sell_state(false) { }
+            purchase_state(false), sell_state(false), earnings(0),
+            expenditure(-1) { }
 
-        double sell(int time) {
+        double sell() {
             std::vector<LookupEntry> bid_portfolio(book.bids.begin(),
                     book.bids.end());
             std::sort(bid_portfolio.begin(),bid_portfolio.end(),
                     LookupCompare());
-            return -1.;
+            int total_sold = 0;
+            double total_takings = 0;
+            std::vector<LookupEntry>::iterator p = bid_portfolio.end();
+            while(total_sold < target_size) {
+                p--;
+                int available = p->second->size;
+                double price = p->second->price;
+                int selling = std::min(available, target_size-total_sold);
+                total_sold += selling;
+                total_takings += selling * price;
+            }
+            return total_takings;
         }
 
-        double purchase(int time) {
+        double purchase() {
             std::vector<LookupEntry> ask_portfolio(book.asks.begin(),
                     book.asks.end());
             std::sort(ask_portfolio.begin(),ask_portfolio.end(),
                     LookupCompare());
-            return 1.;
+            int total_bought = 0;
+            double total_price = 0;
+            std::vector<LookupEntry>::iterator p = ask_portfolio.begin();
+            while(total_bought < target_size) {
+                int available = p->second->size;
+                double price = p->second->price;
+                int buying = std::min(available, target_size-total_bought);
+                total_bought += buying;
+                total_price += buying * price;
+                p++;
+            }
+            return total_price;
         }
         
         void update_states(const Message &m) {
             if(purchase_state && book.total_asks < target_size) {
                 std::cout << m.timestamp << " B NA" <<  std::endl;
                 purchase_state = false;
+                expenditure = -1;
             } 
             if(sell_state && book.total_bids < target_size) {
                 std::cout << m.timestamp << " S NA" <<  std::endl;
                 sell_state = false;
+                earnings = 0;
             }
             if(book.total_asks >= target_size) {
                 purchase_state = true;
-                double cost = purchase(m.timestamp);
-                if(cost < expenditure) {
+                double cost = purchase();
+                if(cost < expenditure || expenditure < 0) {
                     expenditure = cost;
                     std::cout << m.timestamp << " B " << expenditure <<
                         std::endl;
@@ -199,15 +225,13 @@ class TransactionManager {
             }
             if(book.total_bids >= target_size) {
                 sell_state = true;
-                double income = sell(m.timestamp);
+                double income = sell();
                 if(income > earnings) {
                     earnings = income;
                     std::cout << m.timestamp << " S " << earnings <<  std::endl;
                 }
             }
-                    
         }
-
 
         int process() {
             std::string line;
@@ -236,6 +260,9 @@ int main(int argc, char** argv) {
     }
 
     int target_size = atoi(argv[1]);
+
+    std::cout << std::fixed;
+    std::cout.precision(2);
 
     TransactionManager t(target_size,std::cin);
     
