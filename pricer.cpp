@@ -132,8 +132,36 @@ struct OrderBook {
         if(m.mtype==MessageType::REDUCE) {
             reduce_order(m);
         }
-        //std::cout << "asks: " << total_asks << ", bids: " << total_bids << std::endl;
     }
+};
+
+class TransactionManager {
+    uint64_t nmessages;
+    int target_size;
+    std::istream *stream;
+    OrderBook book;
+
+    public:
+        TransactionManager(int target, std::istream &input_stream) :
+            nmessages(0), target_size(target), stream(&input_stream) { }
+
+        int process() {
+            std::string line;
+            while(std::getline(*stream,line)) {
+                nmessages++;
+                std::istringstream iss(line);
+
+                OrderTokens tokens;
+                std::copy(std::istream_iterator<std::string>(iss),
+                    std::istream_iterator<std::string>(),
+                    std::back_inserter<OrderTokens>(tokens));
+
+                Message m(tokens);
+                book.update(m);
+            }
+            return nmessages;
+        }
+
 };
 
 int main(int argc, char** argv) {
@@ -144,32 +172,19 @@ int main(int argc, char** argv) {
 
     int target_size = atoi(argv[1]);
 
-    OrderBook book;
-    std::string line;
-    uint64_t nlines(0);
+    TransactionManager t(target_size,std::cin);
     
     clock_t start, end;
     start=clock();
-    while(std::getline(std::cin,line)) {
-        nlines++;
-        std::istringstream iss(line);
-
-        OrderTokens tokens;
-        std::copy(std::istream_iterator<std::string>(iss),
-            std::istream_iterator<std::string>(),
-            std::back_inserter<OrderTokens>(tokens));
-
-        Message m(tokens);
-        //m.print();
-        book.update(m);
-    }
+    uint64_t nmessages = t.process();
     end=clock();
 
     double total_time = (double)(end-start)/CLOCKS_PER_SEC;
-    std::cout << "processed " << nlines << " in " << total_time <<
+    std::cout << "processed " << nmessages << " in " << total_time <<
         " seconds" << std::endl;
-    std::cout << "Average process time per record: " << (total_time/double(nlines))*1000 << "ms" <<
-        std::endl;
-    std::cout << "Speed: " << nlines / total_time << " records per second" << std::endl;
+    std::cout << "Average process time per record: " <<
+        (total_time/double(nmessages))*1000 << "ms" << std::endl;
+    std::cout << "Speed: " << nmessages / total_time <<
+        " records per second" << std::endl;
     return 0;
 }
