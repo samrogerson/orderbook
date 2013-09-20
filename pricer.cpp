@@ -299,6 +299,8 @@ int main(int argc, char** argv) {
 
     std::cout << std::fixed;
     std::cout.precision(2);
+    //std::cin.sync_with_stdio(false);
+    //std::cout.sync_with_stdio(false);
 
     TransactionManager t(target_size,std::cin);
     
