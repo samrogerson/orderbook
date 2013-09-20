@@ -211,7 +211,7 @@ class TransactionManager {
             double diff = fabs(total_takings - earnings);
             earnings = total_takings;
             have_sold = true;
-            if(diff > 0.01) {
+            if(diff >= 0.005) {
                 std::cout << time << " S " << earnings <<  std::endl;
             }
             return total_takings;
@@ -238,16 +238,16 @@ class TransactionManager {
             double diff = fabs(total_price - expenditure);
             expenditure = total_price;
             have_bought = true;
-            if(diff > 0.01) {
+            if(diff >= 0.005) {
                 std::cout << time << " B " << expenditure << std::endl;
             }
             return total_price;
         }
 
         void update_states(int time) {
-            if(time==28823984) {
-                book.print();
-            }
+            //if(time==28823984) {
+                //book.print();
+            //}
             if(have_bought && book.total_asks < target_size) {
                 std::cout << time << " B NA" <<  std::endl;
                 expenditure = -1;
