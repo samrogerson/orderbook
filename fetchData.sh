@@ -7,6 +7,11 @@ declare -a data_urls=(
     "http://www.rgmadvisors.com/problems/orderbook/pricer.out.10000.gz"
     )
 
+if [[ ! -d data/ ]];
+then
+    mkdir data/
+fi
+
 for url in ${data_urls[@]}
 do
     gz_filename=data/${url##*/}
