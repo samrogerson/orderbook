@@ -301,9 +301,7 @@ int main(int argc, char** argv) {
     double total_time = (double)(end-start)/CLOCKS_PER_SEC;
     std::cout << "processed " << nmessages << " in " << total_time <<
         " seconds" << std::endl;
-    std::cout << "Average process time per record: " <<
-        (total_time/double(nmessages))*1000 << "ms" << std::endl;
-    std::cout << "Speed: " << nmessages / total_time <<
-        " records per second" << std::endl;
+    std::cout << (total_time/double(nmessages))*1000 << "ms/record" << std::endl;
+    std::cout << (nmessages / total_time)/1000. << " records/ms" << std::endl;
     return 0;
 }
