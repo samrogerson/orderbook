@@ -245,9 +245,10 @@ class TransactionManager {
         }
 
         void update_states(int time) {
-            //if(time==28823984) {
-                //book.print();
-            //}
+            if(time==31171613 ) {
+                std::cout << "--" << std::endl;
+                book.print();
+            }
             if(have_bought && book.total_asks < target_size) {
                 std::cout << time << " B NA" <<  std::endl;
                 expenditure = -1;
