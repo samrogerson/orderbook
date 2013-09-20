@@ -17,6 +17,7 @@ typedef std::vector<std::string> OrderTokens;
 typedef std::map<std::string, Order*> OrderLookup;
 typedef std::pair<std::string, Order*> LookupEntry;
 typedef std::map<std::string, Order> Book;
+typedef std::pair<std::string, int> Transaction;
 
 enum class MessageType : char { ADD='A', REDUCE='R' };
 enum class OrderType : char { BID='B', ASK='S', NA };
@@ -158,6 +159,7 @@ class TransactionManager {
 
     bool purchase_state, sell_state;
     double earnings, expenditure;
+    std::vector<Transaction> purchases, sales;
 
     public:
         TransactionManager(int target, std::istream &input_stream) :
@@ -165,7 +167,7 @@ class TransactionManager {
             purchase_state(false), sell_state(false), earnings(0),
             expenditure(-1) { }
 
-        double sell() {
+        double make_sale(const Message &m) {
             std::vector<LookupEntry> bid_portfolio(book.bids.begin(),
                     book.bids.end());
             std::sort(bid_portfolio.begin(),bid_portfolio.end(),
@@ -173,18 +175,25 @@ class TransactionManager {
             int total_sold = 0;
             double total_takings = 0;
             std::vector<LookupEntry>::iterator p = bid_portfolio.end();
+            std::vector<Transaction> transactions;
             while(total_sold < target_size) {
                 p--;
                 int available = p->second->size;
                 double price = p->second->price;
                 int selling = std::min(available, target_size-total_sold);
                 total_sold += selling;
+                transactions.push_back({p->first, selling});
                 total_takings += selling * price;
+            }
+            if(total_takings > earnings) {
+                earnings = total_takings;
+                sales = transactions;
+                std::cout << m.timestamp << " S " << earnings <<  std::endl;
             }
             return total_takings;
         }
 
-        double purchase() {
+        double make_purchase(const Message& m) {
             std::vector<LookupEntry> ask_portfolio(book.asks.begin(),
                     book.asks.end());
             std::sort(ask_portfolio.begin(),ask_portfolio.end(),
@@ -192,15 +201,44 @@ class TransactionManager {
             int total_bought = 0;
             double total_price = 0;
             std::vector<LookupEntry>::iterator p = ask_portfolio.begin();
+            std::vector<Transaction> transactions;
             while(total_bought < target_size) {
                 int available = p->second->size;
                 double price = p->second->price;
                 int buying = std::min(available, target_size-total_bought);
                 total_bought += buying;
+                transactions.push_back({p->first, buying});
                 total_price += buying * price;
                 p++;
             }
+            if(total_price < expenditure || expenditure < 0) {
+                expenditure = total_price;
+                purchases = transactions;
+                std::cout << m.timestamp << " B " << expenditure <<
+                    std::endl;
+            }
             return total_price;
+        }
+
+        void check_transactions() {
+            for(auto& t: purchases) {
+                std::string ID = t.first;
+                int quantity = t.second;
+                int available = book.asks[ID]->size;
+                if(quantity > available) { // stock no longer has enough
+                    expenditure = -1;
+                }
+            }
+            for(auto& t: sales) {
+                std::string ID = t.first;
+                int quantity = t.second;
+                int available = book.bids[ID]->size;
+                if(quantity > available) { // stock no longer has enough
+                    earnings = 0;
+                }
+            }
+
+
         }
         
         void update_states(const Message &m) {
@@ -216,20 +254,11 @@ class TransactionManager {
             }
             if(book.total_asks >= target_size) {
                 purchase_state = true;
-                double cost = purchase();
-                if(cost < expenditure || expenditure < 0) {
-                    expenditure = cost;
-                    std::cout << m.timestamp << " B " << expenditure <<
-                        std::endl;
-                }
+                make_purchase(m);
             }
             if(book.total_bids >= target_size) {
                 sell_state = true;
-                double income = sell();
-                if(income > earnings) {
-                    earnings = income;
-                    std::cout << m.timestamp << " S " << earnings <<  std::endl;
-                }
+                make_sale(m);
             }
         }
 
@@ -246,6 +275,9 @@ class TransactionManager {
 
                 Message m(tokens);
                 book.update(m);
+                if(m.mtype == MessageType::REDUCE) {
+                    check_transactions();
+                }
                 update_states(m);
             }
             return nmessages;
