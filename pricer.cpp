@@ -15,15 +15,15 @@
 struct Order;
 
 typedef std::vector<std::string> OrderTokens;
-typedef std::map<std::string, Order*> OrderLookup;
-typedef std::pair<std::string, Order*> LookupEntry;
+typedef std::map<std::string, Order*> BookLookup;
+typedef std::pair<std::string, Order*> BookLookupEntry;
 typedef std::map<std::string, Order> Book;
 typedef std::pair<std::string, int> Transaction;
 
 enum class MessageType : char { ADD='A', REDUCE='R' };
 enum class OrderType : char { BID='B', ASK='S', NA };
 
-OrderTokens tokenize(std::string line) {
+OrderTokens tokenize(std::string& line) {
     std::istringstream iss(line);
     OrderTokens tokens;
     std::copy(std::istream_iterator<std::string>(iss),
@@ -33,66 +33,67 @@ OrderTokens tokenize(std::string line) {
 }
 
 struct Message {
-        MessageType mtype;
-        OrderType otype;
-        int size;
-        int timestamp;
-        double price;
-        std::string ID;
+    MessageType mtype;
+    OrderType otype;
+    int size;
+    int timestamp;
+    double price;
+    std::string ID;
 
-        Message(OrderTokens &tokens) : mtype(MessageType(tokens[1].c_str()[0])),
-        ID(tokens[2]), timestamp(atoi(tokens[0].c_str())) {
-            int size_pos = (mtype == MessageType::ADD) ? 5 : 3;
-            size = atoi(tokens[size_pos].c_str());
-            // this is being checked twice because of above: combine
-            if(mtype == MessageType::ADD) {
-                otype = OrderType(tokens[3].c_str()[0]);
-                price = atof(tokens[4].c_str());
-            } else {
-                otype = OrderType::NA;
-            }
+    Message(OrderTokens &tokens) : mtype(MessageType(tokens[1].c_str()[0])),
+    ID(tokens[2]), timestamp(atoi(tokens[0].c_str())) {
+        int size_pos = (mtype == MessageType::ADD) ? 5 : 3;
+        size = atoi(tokens[size_pos].c_str());
+        // this is being checked twice because of above: combine
+        if(mtype == MessageType::ADD) {
+            otype = OrderType(tokens[3].c_str()[0]);
+            price = atof(tokens[4].c_str());
+        } else {
+            otype = OrderType::NA;
         }
-        
-        void print() const {
-            std::cout << timestamp << " " << char(mtype) << " " << ID << " ";
-            if(otype != OrderType::NA) {
-                std::cout << char(otype) << " " << price << " ";
-            }
-            std::cout << size << std::endl;
+    }
+    
+    void print() const {
+        std::cout << timestamp << " " << char(mtype) << " " << ID << " ";
+        if(otype != OrderType::NA) {
+            std::cout << char(otype) << " " << price << " ";
         }
+        std::cout << size << std::endl;
+    }
 };
 
 struct Order {
-        OrderType type;
-        int size;
-        double price;
+    OrderType type;
+    int size;
+    double price;
 
-        Order(){}
-        Order(OrderType& t, int s, double& p) : type(t), size(s), price(p) {}
-        Order(const Message& m) : type(m.otype), size(m.size), price(m.price) {}
+    Order(){}
+    Order(OrderType& t, int s, double& p) : type(t), size(s), price(p) {}
+    Order(const Message& m) : type(m.otype), size(m.size), price(m.price) {}
 
-        Order& operator-=(const int& deduction) {
-            size -= deduction;
-        }
-        Order& operator+=(const int& addition) {
-            size += addition;
-        }
+    Order& operator-=(const int& deduction) {
+        size -= deduction;
+    }
+    Order& operator+=(const int& addition) {
+        size += addition;
+    }
 
-        int reduce(const Message& m) {
-            int reduced_by = m.size;
-            if(m.size > size) reduced_by = size;
-            size -= m.size;
-            return reduced_by;
-        }
+    int reduce(const Message& m) {
+        int reduced_by = m.size;
+        if(m.size > size) reduced_by = size;
+        size -= m.size;
+        return reduced_by;
+    }
 
-        void print() const {
-            std::cout << "[" << char(type) <<  " " << size << " " << price << "]" << std::endl;
-        }
+    void print() const {
+        std::cout << "[" << char(type) <<  " " << size << " " << price <<
+            "]" << std::endl;
+    }
 };
 
 struct LookupCompare {
         // sort iterable of pairs of <ID, Order> by increasing price.
-        bool operator()(const LookupEntry &lhs, const LookupEntry &rhs) {
+        bool operator()(const BookLookupEntry &lhs, const BookLookupEntry &rhs){
             return lhs.second->price < rhs.second->price;
         }
 };
@@ -100,8 +101,8 @@ struct LookupCompare {
 
 struct OrderBook {
     Book orders;
-    OrderLookup asks, bids;
-    std::map<OrderType, OrderLookup*> lookup_reference;
+    BookLookup asks, bids;
+    std::map<OrderType, BookLookup*> lookup_reference;
     int total_asks, total_bids;    
 
     OrderBook() {
@@ -127,8 +128,10 @@ struct OrderBook {
         if(!order_exists(m.ID)) {
             Order o(m);
             orders[m.ID] = o;
-            OrderLookup * l = lookup_reference[m.otype];
-            (*l)[m.ID] = &(orders[m.ID]);
+            BookLookup * l = lookup_reference[m.otype];
+            //(*l)[m.ID] = &(orders[m.ID]);
+            Order* o_ptr = &(orders[m.ID]);
+            l->insert({m.ID,o_ptr});
             if(o.type == OrderType::ASK) total_asks += o.size;
             else if(o.type == OrderType::BID) total_bids += o.size;
         } else {
@@ -186,13 +189,13 @@ class TransactionManager {
         {}
 
         double make_sale(int time) {
-            std::vector<LookupEntry> bid_portfolio(book.bids.begin(),
+            std::vector<BookLookupEntry> bid_portfolio(book.bids.begin(),
                     book.bids.end());
             std::sort(bid_portfolio.begin(),bid_portfolio.end(),
                     LookupCompare());
             int total_sold = 0;
             double total_takings = 0;
-            std::vector<LookupEntry>::iterator p = bid_portfolio.end();
+            std::vector<BookLookupEntry>::iterator p = bid_portfolio.end();
             std::vector<Transaction> transactions;
             while(total_sold < target_size) {
                 p--;
@@ -213,13 +216,13 @@ class TransactionManager {
         }
 
         double make_purchase(int time) {
-            std::vector<LookupEntry> ask_portfolio(book.asks.begin(),
+            std::vector<BookLookupEntry> ask_portfolio(book.asks.begin(),
                     book.asks.end());
             std::sort(ask_portfolio.begin(),ask_portfolio.end(),
                     LookupCompare());
             int total_bought = 0;
             double total_price = 0;
-            std::vector<LookupEntry>::iterator p = ask_portfolio.begin();
+            std::vector<BookLookupEntry>::iterator p = ask_portfolio.begin();
             std::vector<Transaction> transactions;
             while(total_bought < target_size) {
                 int available = p->second->size;
@@ -263,9 +266,19 @@ class TransactionManager {
             while(std::getline(*stream,line)) {
                 nmessages++;
                 OrderTokens tokens = tokenize(line);
-                Message m(tokens);
-                book.update(m);
-                update_states(m.timestamp);
+                if(tokens.size() >= 4 ) {
+                    Message m(tokens);
+                    if(m.size > 0) {
+                        book.update(m);
+                        update_states(m.timestamp);
+                    } else {
+                        std::cerr << "[ERR] malformed message: size 0" <<
+                            std::endl;
+                    }
+                } else {
+                    std::cerr << "[ERR] malformed message in line: skipping" <<
+                        std::endl;
+                }
             }
             return nmessages;
         }
@@ -273,17 +286,15 @@ class TransactionManager {
 };
 
 int main(int argc, char** argv) {
+    // Check that we have an argument we can try to handle as an input
     if(argc < 2) {
         std::cout << "This program takes 1 argument" << std::endl;
         return -1;
     }
-
     int target_size = atoi(argv[1]);
 
     std::cout << std::fixed;
     std::cout.precision(2);
-    //std::cin.sync_with_stdio(false);
-    //std::cout.sync_with_stdio(false);
 
     TransactionManager t(target_size,std::cin);
     
@@ -293,11 +304,9 @@ int main(int argc, char** argv) {
     end=clock();
 
     double total_time = (double)(end-start)/CLOCKS_PER_SEC;
-    //std::cout << "processed " << nmessages << " in " << total_time <<
-        //" seconds" << std::endl;
-    //std::cout << "Average process time per record: " <<
-        //(total_time/double(nmessages))*1000 << "ms" << std::endl;
-    //std::cout << "Speed: " << nmessages / total_time <<
-        //" records per second" << std::endl;
+    std::cout << "processed " << nmessages << " in " << total_time <<
+        " seconds" << std::endl;
+    std::cout << (total_time/double(nmessages))*1000 << "ms/record" << std::endl;
+    std::cout << (nmessages / total_time)/1000. << " records/ms" << std::endl;
     return 0;
 }
