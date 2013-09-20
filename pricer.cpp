@@ -242,7 +242,7 @@ class TransactionManager {
             return total_price;
         }
 
-        void update_states(int time) {
+        void update_positions(int time) {
             if(have_bought && book.total_asks < target_size) {
                 std::cout << time << " B NA" <<  std::endl;
                 expenditure = -1;
@@ -270,7 +270,7 @@ class TransactionManager {
                     Message m(tokens);
                     if(m.size > 0) {
                         book.update(m);
-                        update_states(m.timestamp);
+                        update_positions(m.timestamp);
                     } else {
                         std::cerr << "[ERR] malformed message: size 0" <<
                             std::endl;
