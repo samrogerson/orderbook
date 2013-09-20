@@ -15,6 +15,7 @@ struct Order;
 
 typedef std::vector<std::string> OrderTokens;
 typedef std::map<std::string, Order*> OrderLookup;
+typedef std::pair<std::string, Order*> LookupEntry;
 typedef std::map<std::string, Order> Book;
 
 enum class MessageType : char { ADD='A', REDUCE='R' };
@@ -28,8 +29,8 @@ struct Message {
         double price;
         std::string ID;
 
-        Message(OrderTokens &tokens) : mtype(MessageType(tokens[1].c_str()[0])), ID(tokens[2]),
-        timestamp(atoi(tokens[0].c_str())) {
+        Message(OrderTokens &tokens) : mtype(MessageType(tokens[1].c_str()[0])),
+        ID(tokens[2]), timestamp(atoi(tokens[0].c_str())) {
             int size_pos = (mtype == MessageType::ADD) ? 5 : 3;
             size = atoi(tokens[size_pos].c_str());
             // this is being checked twice because of above: combine
@@ -75,6 +76,13 @@ struct Order {
 
 };
 
+struct LookupCompare {
+        bool operator()(const LookupEntry &lhs, const LookupEntry &rhs) {
+            return lhs.second->price < rhs.second->price;
+        }
+};
+
+
 struct OrderBook {
     Book orders;
     OrderLookup asks, bids;
@@ -103,7 +111,8 @@ struct OrderBook {
             if(o.type == OrderType::ASK) total_asks += o.size;
             else if(o.type == OrderType::BID) total_bids += o.size;
         } else {
-            std::cerr << "[ERR] received ADD order for existing order ID=" << m.ID << std::endl;
+            std::cerr << "[ERR] received ADD order for existing order ID=" <<
+                m.ID << std::endl;
             return -1;
         }
         return 0;
@@ -113,14 +122,19 @@ struct OrderBook {
         if(order_exists(m.ID)) {
             Book::iterator id_order = orders.find(m.ID);
             int deduction = id_order->second.reduce(m);
-            if(id_order->second.type == OrderType::ASK) total_asks -= deduction;
-            else if(id_order->second.type == OrderType::BID) total_bids -= deduction;
+            if(id_order->second.type == OrderType::ASK) {
+                total_asks -= deduction;
+            } else if(id_order->second.type == OrderType::BID) {
+                total_bids -= deduction;
+            }
             if(id_order->second.size<=0) {
                 orders.erase(id_order->first);
                 lookup_reference[id_order->second.type]->erase(id_order->first);
             }
         } else {
-            std::cerr << "[ERR] received REDUCE order for non-existant order ID=" << m.ID << std::endl;
+            std::cerr <<
+                "[ERR] received REDUCE order for non-existant order ID=" <<
+                m.ID << std::endl;
         }
         return 0;
     }
@@ -150,10 +164,18 @@ class TransactionManager {
             purchase_state(false), sell_state(false) { }
 
         double sell(int time) {
+            std::vector<LookupEntry> bid_portfolio(book.bids.begin(),
+                    book.bids.end());
+            std::sort(bid_portfolio.begin(),bid_portfolio.end(),
+                    LookupCompare());
             return -1.;
         }
 
         double purchase(int time) {
+            std::vector<LookupEntry> ask_portfolio(book.asks.begin(),
+                    book.asks.end());
+            std::sort(ask_portfolio.begin(),ask_portfolio.end(),
+                    LookupCompare());
             return 1.;
         }
         
@@ -171,7 +193,8 @@ class TransactionManager {
                 double cost = purchase(m.timestamp);
                 if(cost < expenditure) {
                     expenditure = cost;
-                    std::cout << m.timestamp << " B " << expenditure <<  std::endl;
+                    std::cout << m.timestamp << " B " << expenditure <<
+                        std::endl;
                 }
             }
             if(book.total_bids >= target_size) {
