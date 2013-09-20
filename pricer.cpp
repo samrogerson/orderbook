@@ -8,18 +8,17 @@
 #include <cstdlib>
 #include <utility>
 #include <map>
-#include <unordered_map>
 
 #include <ctime>
 
 struct Order;
 
 typedef std::vector<std::string> OrderTokens;
-typedef std::map<std::string, Order> OrderBook;
-typedef std::pair<int, int> BookSummary;
+typedef std::map<std::string, Order*> OrderLookup;
+typedef std::map<std::string, Order> Book;
 
 enum class MessageType : char { ADD='A', REDUCE='R' };
-enum class OrderType : char { BUY='B', SELL='S', NA };
+enum class OrderType : char { BID='B', ASK='S', NA };
 
 struct Message {
         MessageType mtype;
@@ -67,32 +66,75 @@ struct Order {
             size += addition;
         }
 
-        void reduce(const Message& m) {
+        int reduce(const Message& m) {
+            int reduced_by = m.size;
+            if(m.size > size) reduced_by = size;
             size -= m.size;
+            return reduced_by;
         }
 
 };
 
-bool process_message(const Message &m, OrderBook &b) {
-    if(m.mtype==MessageType::ADD) {
-        if(b.find(m.ID) == b.end()) {
-            b[m.ID] = Order(m);
+struct OrderBook {
+    Book orders;
+    OrderLookup asks, bids;
+    std::map<OrderType, OrderLookup*> lookup_reference;
+    int total_asks, total_bids;    
+
+    OrderBook() {
+        total_asks = 0;
+        total_bids = 0;
+
+        lookup_reference[OrderType::ASK] = &asks;
+        lookup_reference[OrderType::BID] = &bids;
+    }
+        
+
+    bool order_exists(const std::string& ID) {
+        return orders.find(ID)!=orders.end();
+    }
+        
+    int add_order(const Message &m) {
+        if(!order_exists(m.ID)) {
+            Order o(m);
+            orders[m.ID] = o;
+            OrderLookup * l = lookup_reference[m.otype];
+            (*l)[m.ID] = &(orders[m.ID]);
+            if(o.type == OrderType::ASK) total_asks += o.size;
+            else if(o.type == OrderType::BID) total_bids += o.size;
         } else {
             std::cerr << "[ERR] received ADD order for existing order ID=" << m.ID << std::endl;
+            return -1;
         }
+        return 0;
     }
-    if(m.mtype==MessageType::REDUCE) {
-        OrderBook::iterator order = b.find(m.ID);
-        if(order != b.end()) {
-            order->second.reduce(m);
-            if(order->second.size<=0) {
-                b.erase(order);
+
+    int reduce_order(const Message &m) {
+        if(order_exists(m.ID)) {
+            Book::iterator id_order = orders.find(m.ID);
+            int deduction = id_order->second.reduce(m);
+            if(id_order->second.type == OrderType::ASK) total_asks -= deduction;
+            else if(id_order->second.type == OrderType::BID) total_bids -= deduction;
+            if(id_order->second.size<=0) {
+                orders.erase(id_order->first);
+                lookup_reference[id_order->second.type]->erase(id_order->first);
             }
         } else {
             std::cerr << "[ERR] received REDUCE order for non-existant order ID=" << m.ID << std::endl;
         }
+        return 0;
     }
-}
+    
+    bool update(const Message &m) {
+        if(m.mtype==MessageType::ADD) {
+            add_order(m);
+        }
+        if(m.mtype==MessageType::REDUCE) {
+            reduce_order(m);
+        }
+        //std::cout << "asks: " << total_asks << ", bids: " << total_bids << std::endl;
+    }
+};
 
 int main(int argc, char** argv) {
     if(argc < 2) {
@@ -118,8 +160,8 @@ int main(int argc, char** argv) {
             std::back_inserter<OrderTokens>(tokens));
 
         Message m(tokens);
-        process_message(m,book);
-        m.print();
+        //m.print();
+        book.update(m);
     }
     end=clock();
 
