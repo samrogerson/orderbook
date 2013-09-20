@@ -22,6 +22,15 @@ typedef std::pair<std::string, int> Transaction;
 enum class MessageType : char { ADD='A', REDUCE='R' };
 enum class OrderType : char { BID='B', ASK='S', NA };
 
+OrderTokens tokenize(std::string line) {
+    std::istringstream iss(line);
+    OrderTokens tokens;
+    std::copy(std::istream_iterator<std::string>(iss),
+        std::istream_iterator<std::string>(),
+        std::back_inserter<OrderTokens>(tokens));
+    return tokens;
+}
+
 struct Message {
         MessageType mtype;
         OrderType otype;
@@ -43,7 +52,7 @@ struct Message {
             }
         }
         
-        void print() {
+        void print() const {
             std::cout << timestamp << " " << char(mtype) << " " << ID << " ";
             if(otype != OrderType::NA) {
                 std::cout << char(otype) << " " << price << " ";
@@ -141,12 +150,17 @@ struct OrderBook {
         return 0;
     }
     
-    bool update(const Message &m) {
-        if(m.mtype==MessageType::ADD) {
-            add_order(m);
-        }
-        if(m.mtype==MessageType::REDUCE) {
-            reduce_order(m);
+    bool update(const std::vector<Message> &messages) {
+        //std::cout  << "--" << std::endl;
+        for(auto& m: messages) {
+            //std::cout << " ";
+            //m.print();
+            if(m.mtype==MessageType::ADD) {
+                add_order(m);
+            }
+            if(m.mtype==MessageType::REDUCE) {
+                reduce_order(m);
+            }
         }
     }
 };
@@ -167,7 +181,7 @@ class TransactionManager {
             purchase_state(false), sell_state(false), earnings(0),
             expenditure(-1) { }
 
-        double make_sale(const Message &m) {
+        double make_sale(int time) {
             std::vector<LookupEntry> bid_portfolio(book.bids.begin(),
                     book.bids.end());
             std::sort(bid_portfolio.begin(),bid_portfolio.end(),
@@ -188,12 +202,12 @@ class TransactionManager {
             if(total_takings > earnings) {
                 earnings = total_takings;
                 sales = transactions;
-                std::cout << m.timestamp << " S " << earnings <<  std::endl;
+                std::cout << time << " S " << earnings <<  std::endl;
             }
             return total_takings;
         }
 
-        double make_purchase(const Message& m) {
+        double make_purchase(int time) {
             std::vector<LookupEntry> ask_portfolio(book.asks.begin(),
                     book.asks.end());
             std::sort(ask_portfolio.begin(),ask_portfolio.end(),
@@ -214,7 +228,7 @@ class TransactionManager {
             if(total_price < expenditure || expenditure < 0) {
                 expenditure = total_price;
                 purchases = transactions;
-                std::cout << m.timestamp << " B " << expenditure <<
+                std::cout << time << " B " << expenditure <<
                     std::endl;
             }
             return total_price;
@@ -245,44 +259,67 @@ class TransactionManager {
 
         }
         
-        void update_states(const Message &m) {
+        void update_states(int time) {
             if(purchase_state && book.total_asks < target_size) {
-                std::cout << m.timestamp << " B NA" <<  std::endl;
+                std::cout << time << " B NA" <<  std::endl;
                 purchase_state = false;
                 expenditure = -1;
             } 
             if(sell_state && book.total_bids < target_size) {
-                std::cout << m.timestamp << " S NA" <<  std::endl;
+                std::cout << time << " S NA" <<  std::endl;
                 sell_state = false;
                 earnings = 0;
             }
             if(book.total_asks >= target_size) {
                 purchase_state = true;
-                make_purchase(m);
+                make_purchase(time);
             }
             if(book.total_bids >= target_size) {
                 sell_state = true;
-                make_sale(m);
+                make_sale(time);
             }
         }
 
         int process() {
             std::string line;
+            std::vector<Message> messages;
+            bool fetch = true;
+            std::getline(*stream,line);
+            nmessages++;
+            OrderTokens tokens = tokenize(line);
+            Message m(tokens);
+            int current_time = m.timestamp;
+            messages.push_back(m);
+
             while(std::getline(*stream,line)) {
                 nmessages++;
-                std::istringstream iss(line);
-
-                OrderTokens tokens;
-                std::copy(std::istream_iterator<std::string>(iss),
-                    std::istream_iterator<std::string>(),
-                    std::back_inserter<OrderTokens>(tokens));
-
-                Message m(tokens);
-                book.update(m);
-                if(m.mtype == MessageType::REDUCE) {
-                    check_transactions();
+                tokens = tokenize(line);
+                m = Message(tokens);
+                if(m.timestamp == current_time) {
+                    messages.push_back(m);
+                } else {
+                    book.update(messages);
+                    for(auto& mess: messages) {
+                        if(mess.mtype == MessageType::REDUCE) {
+                            check_transactions();
+                            break;
+                        }
+                    }
+                    update_states(current_time);
+                    current_time = m.timestamp;
+                    messages.clear();
+                    messages.push_back(m);
                 }
-                update_states(m);
+            }
+            if(messages.size() > 0 ) {
+                book.update(messages);
+                for(auto& mess: messages) {
+                    if(mess.mtype == MessageType::REDUCE) {
+                        check_transactions();
+                        break;
+                    }
+                }
+                update_states(current_time);
             }
             return nmessages;
         }
@@ -310,11 +347,11 @@ int main(int argc, char** argv) {
     end=clock();
 
     double total_time = (double)(end-start)/CLOCKS_PER_SEC;
-    std::cout << "processed " << nmessages << " in " << total_time <<
-        " seconds" << std::endl;
-    std::cout << "Average process time per record: " <<
-        (total_time/double(nmessages))*1000 << "ms" << std::endl;
-    std::cout << "Speed: " << nmessages / total_time <<
-        " records per second" << std::endl;
+    //std::cout << "processed " << nmessages << " in " << total_time <<
+        //" seconds" << std::endl;
+    //std::cout << "Average process time per record: " <<
+        //(total_time/double(nmessages))*1000 << "ms" << std::endl;
+    //std::cout << "Speed: " << nmessages / total_time <<
+        //" records per second" << std::endl;
     return 0;
 }
