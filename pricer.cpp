@@ -224,7 +224,10 @@ class TransactionManager {
             for(auto& t: purchases) {
                 std::string ID = t.first;
                 int quantity = t.second;
-                int available = book.asks[ID]->size;
+                OrderLookup::iterator it = book.asks.find(ID);
+                int available = (it != book.asks.end()) ? it->second->size : 0;
+
+
                 if(quantity > available) { // stock no longer has enough
                     expenditure = -1;
                 }
@@ -232,7 +235,8 @@ class TransactionManager {
             for(auto& t: sales) {
                 std::string ID = t.first;
                 int quantity = t.second;
-                int available = book.bids[ID]->size;
+                OrderLookup::iterator it = book.bids.find(ID);
+                int available = (it != book.bids.end()) ? it->second->size : 0;
                 if(quantity > available) { // stock no longer has enough
                     earnings = 0;
                 }
