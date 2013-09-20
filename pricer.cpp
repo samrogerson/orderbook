@@ -172,15 +172,13 @@ class TransactionManager {
     std::istream *stream;
     OrderBook book;
 
-    bool purchase_state, sell_state;
     double earnings, expenditure;
     std::vector<Transaction> purchases, sales;
 
     public:
         TransactionManager(int target, std::istream &input_stream) :
             nmessages(0), target_size(target), stream(&input_stream),
-            purchase_state(false), sell_state(false), earnings(0),
-            expenditure(-1) { }
+            earnings(0), expenditure(-1) { }
 
         double make_sale(int time) {
             std::vector<LookupEntry> bid_portfolio(book.bids.begin(),
@@ -242,8 +240,6 @@ class TransactionManager {
                 int quantity = t.second;
                 OrderLookup::iterator it = book.asks.find(ID);
                 int available = (it != book.asks.end()) ? it->second->size : 0;
-
-
                 if(quantity > available) { // stock no longer has enough
                     expenditure = -1;
                 }
@@ -257,27 +253,23 @@ class TransactionManager {
                     earnings = 0;
                 }
             }
-
-
         }
         
         void update_states(int time) {
-            if(purchase_state && book.total_asks < target_size) {
+            if(purchases.size() > 0 && book.total_asks < target_size) {
                 std::cout << time << " B NA" <<  std::endl;
-                purchase_state = false;
                 expenditure = -1;
+                purchases.clear();
             } 
-            if(sell_state && book.total_bids < target_size) {
+            if(sales.size() > 0 && book.total_bids < target_size) {
                 std::cout << time << " S NA" <<  std::endl;
-                sell_state = false;
                 earnings = 0;
+                sales.clear();
             }
             if(book.total_asks >= target_size) {
-                purchase_state = true;
                 make_purchase(time);
             }
             if(book.total_bids >= target_size) {
-                sell_state = true;
                 make_sale(time);
             }
         }
