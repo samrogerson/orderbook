@@ -85,6 +85,9 @@ struct Order {
             return reduced_by;
         }
 
+        void print() const {
+            std::cout << "[" << char(type) <<  " " << size << " " << price << "]" << std::endl;
+        }
 };
 
 struct LookupCompare {
@@ -107,6 +110,12 @@ struct OrderBook {
 
         lookup_reference[OrderType::ASK] = &asks;
         lookup_reference[OrderType::BID] = &bids;
+    }
+
+    void print() const {
+        for(auto& o : orders) {
+            o.second.print();
+        }
     }
         
 
@@ -236,6 +245,9 @@ class TransactionManager {
         }
 
         void update_states(int time) {
+            if(time==28823984) {
+                book.print();
+            }
             if(have_bought && book.total_asks < target_size) {
                 std::cout << time << " B NA" <<  std::endl;
                 expenditure = -1;
