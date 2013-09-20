@@ -264,38 +264,6 @@ class TransactionManager {
             }
         }
 
-        //int process() {
-            //std::string line;
-            //std::vector<Message> messages;
-            //std::getline(*stream,line);
-            //nmessages++;
-            //OrderTokens tokens = tokenize(line);
-            //Message m(tokens);
-            //int current_time = m.timestamp;
-            //std::string currID = m.ID;
-            //messages.push_back(m);
-
-            //while(std::getline(*stream,line)) {
-                //nmessages++;
-                //tokens = tokenize(line);
-                //m = Message(tokens);
-                //if(m.timestamp == current_time && m.ID == currID) {
-                    //messages.push_back(m);
-                //} else {
-                    //book.update(messages);
-                    //update_states(current_time);
-                    //current_time = m.timestamp;
-                    //currID = m.ID;
-                    //messages.clear();
-                    //messages.push_back(m);
-                //}
-            //}
-            //if(messages.size() > 0 ) {
-                //book.update(messages);
-                //update_states(current_time);
-            //}
-            //return nmessages;
-        //}
         int process() {
             std::string line;
             std::vector<Message> messages;
