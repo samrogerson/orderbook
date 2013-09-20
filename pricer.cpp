@@ -234,27 +234,6 @@ class TransactionManager {
             return total_price;
         }
 
-        void check_transactions() {
-            for(auto& t: purchases) {
-                std::string ID = t.first;
-                int quantity = t.second;
-                OrderLookup::iterator it = book.asks.find(ID);
-                int available = (it != book.asks.end()) ? it->second->size : 0;
-                if(quantity > available) { // stock no longer has enough
-                    expenditure = -1;
-                }
-            }
-            for(auto& t: sales) {
-                std::string ID = t.first;
-                int quantity = t.second;
-                OrderLookup::iterator it = book.bids.find(ID);
-                int available = (it != book.bids.end()) ? it->second->size : 0;
-                if(quantity > available) { // stock no longer has enough
-                    earnings = 0;
-                }
-            }
-        }
-        
         void update_states(int time) {
             if(purchases.size() > 0 && book.total_asks < target_size) {
                 std::cout << time << " B NA" <<  std::endl;
@@ -292,12 +271,6 @@ class TransactionManager {
                     messages.push_back(m);
                 } else {
                     book.update(messages);
-                    for(auto& mess: messages) {
-                        if(mess.mtype == MessageType::REDUCE) {
-                            check_transactions();
-                            break;
-                        }
-                    }
                     update_states(current_time);
                     current_time = m.timestamp;
                     messages.clear();
@@ -306,12 +279,6 @@ class TransactionManager {
             }
             if(messages.size() > 0 ) {
                 book.update(messages);
-                for(auto& mess: messages) {
-                    if(mess.mtype == MessageType::REDUCE) {
-                        check_transactions();
-                        break;
-                    }
-                }
                 update_states(current_time);
             }
             return nmessages;
