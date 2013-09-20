@@ -23,7 +23,7 @@ typedef std::pair<std::string, int> Transaction;
 enum class MessageType : char { ADD='A', REDUCE='R' };
 enum class OrderType : char { BID='B', ASK='S', NA };
 
-OrderTokens tokenize(std::string line) {
+OrderTokens tokenize(std::string& line) {
     std::istringstream iss(line);
     OrderTokens tokens;
     std::copy(std::istream_iterator<std::string>(iss),
@@ -86,7 +86,8 @@ struct Order {
         }
 
         void print() const {
-            std::cout << "[" << char(type) <<  " " << size << " " << price << "]" << std::endl;
+            std::cout << "[" << char(type) <<  " " << size << " " << price <<
+                "]" << std::endl;
         }
 };
 
