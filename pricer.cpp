@@ -173,12 +173,13 @@ class TransactionManager {
     OrderBook book;
 
     double earnings, expenditure;
-    std::vector<Transaction> purchases, sales;
+    bool have_bought, have_sold;
 
     public:
         TransactionManager(int target, std::istream &input_stream) :
             nmessages(0), target_size(target), stream(&input_stream),
-            earnings(0), expenditure(-1) { }
+            earnings(0), expenditure(-1), have_bought(false), have_sold(false)
+        {}
 
         double make_sale(int time) {
             std::vector<LookupEntry> bid_portfolio(book.bids.begin(),
@@ -200,7 +201,7 @@ class TransactionManager {
             }
             double diff = fabs(total_takings - earnings);
             earnings = total_takings;
-            sales = transactions;
+            have_sold = true;
             if(diff > 0.01) {
                 std::cout << time << " S " << earnings <<  std::endl;
             }
@@ -227,7 +228,7 @@ class TransactionManager {
             }
             double diff = fabs(total_price - expenditure);
             expenditure = total_price;
-            purchases = transactions;
+            have_bought = true;
             if(diff > 0.01) {
                 std::cout << time << " B " << expenditure << std::endl;
             }
@@ -235,15 +236,15 @@ class TransactionManager {
         }
 
         void update_states(int time) {
-            if(purchases.size() > 0 && book.total_asks < target_size) {
+            if(have_bought && book.total_asks < target_size) {
                 std::cout << time << " B NA" <<  std::endl;
                 expenditure = -1;
-                purchases.clear();
+                have_bought = false;
             } 
-            if(sales.size() > 0 && book.total_bids < target_size) {
+            if(have_sold && book.total_bids < target_size) {
                 std::cout << time << " S NA" <<  std::endl;
                 earnings = 0;
-                sales.clear();
+                have_sold = false;
             }
             if(book.total_asks >= target_size) {
                 make_purchase(time);
