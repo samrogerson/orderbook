@@ -15,8 +15,8 @@
 struct Order;
 
 typedef std::vector<std::string> OrderTokens;
-typedef std::map<std::string, Order*> OrderLookup;
-typedef std::pair<std::string, Order*> LookupEntry;
+typedef std::map<std::string, Order*> BookLookup;
+typedef std::pair<std::string, Order*> BookBookLookupEntry;
 typedef std::map<std::string, Order> Book;
 typedef std::pair<std::string, int> Transaction;
 
@@ -92,7 +92,7 @@ struct Order {
 
 struct LookupCompare {
         // sort iterable of pairs of <ID, Order> by increasing price.
-        bool operator()(const LookupEntry &lhs, const LookupEntry &rhs) {
+        bool operator()(const BookLookupEntry &lhs, const BookLookupEntry &rhs){
             return lhs.second->price < rhs.second->price;
         }
 };
@@ -100,8 +100,8 @@ struct LookupCompare {
 
 struct OrderBook {
     Book orders;
-    OrderLookup asks, bids;
-    std::map<OrderType, OrderLookup*> lookup_reference;
+    BookLookup asks, bids;
+    std::map<OrderType, BookLookup*> lookup_reference;
     int total_asks, total_bids;    
 
     OrderBook() {
@@ -127,7 +127,7 @@ struct OrderBook {
         if(!order_exists(m.ID)) {
             Order o(m);
             orders[m.ID] = o;
-            OrderLookup * l = lookup_reference[m.otype];
+            BookLookup * l = lookup_reference[m.otype];
             (*l)[m.ID] = &(orders[m.ID]);
             if(o.type == OrderType::ASK) total_asks += o.size;
             else if(o.type == OrderType::BID) total_bids += o.size;
@@ -186,13 +186,13 @@ class TransactionManager {
         {}
 
         double make_sale(int time) {
-            std::vector<LookupEntry> bid_portfolio(book.bids.begin(),
+            std::vector<BookLookupEntry> bid_portfolio(book.bids.begin(),
                     book.bids.end());
             std::sort(bid_portfolio.begin(),bid_portfolio.end(),
                     LookupCompare());
             int total_sold = 0;
             double total_takings = 0;
-            std::vector<LookupEntry>::iterator p = bid_portfolio.end();
+            std::vector<BookLookupEntry>::iterator p = bid_portfolio.end();
             std::vector<Transaction> transactions;
             while(total_sold < target_size) {
                 p--;
@@ -213,13 +213,13 @@ class TransactionManager {
         }
 
         double make_purchase(int time) {
-            std::vector<LookupEntry> ask_portfolio(book.asks.begin(),
+            std::vector<BookLookupEntry> ask_portfolio(book.asks.begin(),
                     book.asks.end());
             std::sort(ask_portfolio.begin(),ask_portfolio.end(),
                     LookupCompare());
             int total_bought = 0;
             double total_price = 0;
-            std::vector<LookupEntry>::iterator p = ask_portfolio.begin();
+            std::vector<BookLookupEntry>::iterator p = ask_portfolio.begin();
             std::vector<Transaction> transactions;
             while(total_bought < target_size) {
                 int available = p->second->size;
@@ -268,7 +268,8 @@ class TransactionManager {
                     book.update(m);
                     update_states(m.timestamp);
                 } else {
-                    std::cerr << "[ERR] malformed message in line: skipping" << std::endl;
+                    std::cerr << "[ERR] malformed message in line: skipping" <<
+                        std::endl;
                 }
             }
             return nmessages;
