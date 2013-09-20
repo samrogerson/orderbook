@@ -33,62 +33,62 @@ OrderTokens tokenize(std::string& line) {
 }
 
 struct Message {
-        MessageType mtype;
-        OrderType otype;
-        int size;
-        int timestamp;
-        double price;
-        std::string ID;
+    MessageType mtype;
+    OrderType otype;
+    int size;
+    int timestamp;
+    double price;
+    std::string ID;
 
-        Message(OrderTokens &tokens) : mtype(MessageType(tokens[1].c_str()[0])),
-        ID(tokens[2]), timestamp(atoi(tokens[0].c_str())) {
-            int size_pos = (mtype == MessageType::ADD) ? 5 : 3;
-            size = atoi(tokens[size_pos].c_str());
-            // this is being checked twice because of above: combine
-            if(mtype == MessageType::ADD) {
-                otype = OrderType(tokens[3].c_str()[0]);
-                price = atof(tokens[4].c_str());
-            } else {
-                otype = OrderType::NA;
-            }
+    Message(OrderTokens &tokens) : mtype(MessageType(tokens[1].c_str()[0])),
+    ID(tokens[2]), timestamp(atoi(tokens[0].c_str())) {
+        int size_pos = (mtype == MessageType::ADD) ? 5 : 3;
+        size = atoi(tokens[size_pos].c_str());
+        // this is being checked twice because of above: combine
+        if(mtype == MessageType::ADD) {
+            otype = OrderType(tokens[3].c_str()[0]);
+            price = atof(tokens[4].c_str());
+        } else {
+            otype = OrderType::NA;
         }
-        
-        void print() const {
-            std::cout << timestamp << " " << char(mtype) << " " << ID << " ";
-            if(otype != OrderType::NA) {
-                std::cout << char(otype) << " " << price << " ";
-            }
-            std::cout << size << std::endl;
+    }
+    
+    void print() const {
+        std::cout << timestamp << " " << char(mtype) << " " << ID << " ";
+        if(otype != OrderType::NA) {
+            std::cout << char(otype) << " " << price << " ";
         }
+        std::cout << size << std::endl;
+    }
 };
 
 struct Order {
-        OrderType type;
-        int size;
-        double price;
+    OrderType type;
+    int size;
+    double price;
 
-        Order(){}
-        Order(OrderType& t, int s, double& p) : type(t), size(s), price(p) {}
-        Order(const Message& m) : type(m.otype), size(m.size), price(m.price) {}
+    Order(){}
+    Order(OrderType& t, int s, double& p) : type(t), size(s), price(p) {}
+    Order(const Message& m) : type(m.otype), size(m.size), price(m.price) {}
 
-        Order& operator-=(const int& deduction) {
-            size -= deduction;
-        }
-        Order& operator+=(const int& addition) {
-            size += addition;
-        }
+    Order& operator-=(const int& deduction) {
+        size -= deduction;
+    }
+    Order& operator+=(const int& addition) {
+        size += addition;
+    }
 
-        int reduce(const Message& m) {
-            int reduced_by = m.size;
-            if(m.size > size) reduced_by = size;
-            size -= m.size;
-            return reduced_by;
-        }
+    int reduce(const Message& m) {
+        int reduced_by = m.size;
+        if(m.size > size) reduced_by = size;
+        size -= m.size;
+        return reduced_by;
+    }
 
-        void print() const {
-            std::cout << "[" << char(type) <<  " " << size << " " << price <<
-                "]" << std::endl;
-        }
+    void print() const {
+        std::cout << "[" << char(type) <<  " " << size << " " << price <<
+            "]" << std::endl;
+    }
 };
 
 struct LookupCompare {
