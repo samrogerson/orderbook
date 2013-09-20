@@ -268,8 +268,13 @@ class TransactionManager {
                 OrderTokens tokens = tokenize(line);
                 if(tokens.size() >= 4 ) {
                     Message m(tokens);
-                    book.update(m);
-                    update_states(m.timestamp);
+                    if(m.size > 0) {
+                        book.update(m);
+                        update_states(m.timestamp);
+                    } else {
+                        std::cerr << "[ERR] malformed message: size 0" <<
+                            std::endl;
+                    }
                 } else {
                     std::cerr << "[ERR] malformed message in line: skipping" <<
                         std::endl;
