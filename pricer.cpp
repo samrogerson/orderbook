@@ -60,13 +60,18 @@ bool process_message(const Message &m, OrderBook &b) {
 }
 
 int main(int argc, char** argv) {
-    clock_t start, end;
+    if(argc < 2) {
+        std::cout << "This program takes 1 argument" << std::endl;
+        return -1;
+    }
 
-    std::string line;
-    uint64_t nlines(0);
+    int target_size = atoi(argv[1]);
 
     OrderBook book;
+    std::string line;
+    uint64_t nlines(0);
     
+    clock_t start, end;
     start=clock();
     while(std::getline(std::cin,line)) {
         nlines++;
