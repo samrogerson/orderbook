@@ -263,9 +263,13 @@ class TransactionManager {
             while(std::getline(*stream,line)) {
                 nmessages++;
                 OrderTokens tokens = tokenize(line);
-                Message m(tokens);
-                book.update(m);
-                update_states(m.timestamp);
+                if(tokens.size() >= 4 ) {
+                    Message m(tokens);
+                    book.update(m);
+                    update_states(m.timestamp);
+                } else {
+                    std::cerr << "[ERR] malformed message in line: skipping" << std::endl;
+                }
             }
             return nmessages;
         }
@@ -273,17 +277,15 @@ class TransactionManager {
 };
 
 int main(int argc, char** argv) {
+    // Check that we have an argument we can try to handle as an input
     if(argc < 2) {
         std::cout << "This program takes 1 argument" << std::endl;
         return -1;
     }
-
     int target_size = atoi(argv[1]);
 
     std::cout << std::fixed;
     std::cout.precision(2);
-    //std::cin.sync_with_stdio(false);
-    //std::cout.sync_with_stdio(false);
 
     TransactionManager t(target_size,std::cin);
     
@@ -293,11 +295,11 @@ int main(int argc, char** argv) {
     end=clock();
 
     double total_time = (double)(end-start)/CLOCKS_PER_SEC;
-    //std::cout << "processed " << nmessages << " in " << total_time <<
-        //" seconds" << std::endl;
-    //std::cout << "Average process time per record: " <<
-        //(total_time/double(nmessages))*1000 << "ms" << std::endl;
-    //std::cout << "Speed: " << nmessages / total_time <<
-        //" records per second" << std::endl;
+    std::cout << "processed " << nmessages << " in " << total_time <<
+        " seconds" << std::endl;
+    std::cout << "Average process time per record: " <<
+        (total_time/double(nmessages))*1000 << "ms" << std::endl;
+    std::cout << "Speed: " << nmessages / total_time <<
+        " records per second" << std::endl;
     return 0;
 }
