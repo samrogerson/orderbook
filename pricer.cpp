@@ -6,26 +6,28 @@
 #include <iterator>
 #include <cstdint>
 #include <cstdlib>
+#include <utility>
 #include <map>
 #include <unordered_map>
 
 #include <ctime>
 
+struct Order;
+
 typedef std::vector<std::string> OrderTokens;
-typedef std::map<std::string, int> OrderBook;
+typedef std::map<std::string, Order> OrderBook;
+typedef std::pair<int, int> BookSummary;
 
 enum class MessageType : char { ADD='A', REDUCE='R' };
-enum class OrderType : char { BUY='B', SELL='S' };
+enum class OrderType : char { BUY='B', SELL='S', NA };
 
-class Message {
-    friend bool process_message(const Message&, OrderBook&);
-    private:
+struct Message {
         MessageType mtype;
         OrderType otype;
         int size;
         int timestamp;
+        double price;
         std::string ID;
-    public:
 
         Message(OrderTokens &tokens) : mtype(MessageType(tokens[1].c_str()[0])), ID(tokens[2]),
         timestamp(atoi(tokens[0].c_str())) {
@@ -34,14 +36,47 @@ class Message {
             // this is being checked twice because of above: combine
             if(mtype == MessageType::ADD) {
                 otype = OrderType(tokens[3].c_str()[0]);
+                price = atof(tokens[4].c_str());
+            } else {
+                otype = OrderType::NA;
             }
         }
+        
+        void print() {
+            std::cout << timestamp << " " << char(mtype) << " " << ID << " ";
+            if(otype != OrderType::NA) {
+                std::cout << char(otype) << " " << price << " ";
+            }
+            std::cout << size << std::endl;
+        }
+};
+
+struct Order {
+        OrderType type;
+        int size;
+        double price;
+
+        Order(){}
+        Order(OrderType& t, int s, double& p) : type(t), size(s), price(p) {}
+        Order(const Message& m) : type(m.otype), size(m.size), price(m.price) {}
+
+        Order& operator-=(const int& deduction) {
+            size -= deduction;
+        }
+        Order& operator+=(const int& addition) {
+            size += addition;
+        }
+
+        void reduce(const Message& m) {
+            size -= m.size;
+        }
+
 };
 
 bool process_message(const Message &m, OrderBook &b) {
     if(m.mtype==MessageType::ADD) {
         if(b.find(m.ID) == b.end()) {
-            b[m.ID] = m.size;
+            b[m.ID] = Order(m);
         } else {
             std::cerr << "[ERR] received ADD order for existing order ID=" << m.ID << std::endl;
         }
@@ -49,8 +84,8 @@ bool process_message(const Message &m, OrderBook &b) {
     if(m.mtype==MessageType::REDUCE) {
         OrderBook::iterator order = b.find(m.ID);
         if(order != b.end()) {
-            order->second -= m.size;
-            if(order->second<=0) {
+            order->second.reduce(m);
+            if(order->second.size<=0) {
                 b.erase(order);
             }
         } else {
@@ -84,6 +119,7 @@ int main(int argc, char** argv) {
 
         Message m(tokens);
         process_message(m,book);
+        m.print();
     }
     end=clock();
 
