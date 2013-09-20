@@ -16,7 +16,7 @@ struct Order;
 
 typedef std::vector<std::string> OrderTokens;
 typedef std::map<std::string, Order*> BookLookup;
-typedef std::pair<std::string, Order*> BookBookLookupEntry;
+typedef std::pair<std::string, Order*> BookLookupEntry;
 typedef std::map<std::string, Order> Book;
 typedef std::pair<std::string, int> Transaction;
 
