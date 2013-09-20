@@ -161,10 +161,7 @@ struct OrderBook {
     }
     
     bool update(const std::vector<Message> &messages) {
-        //std::cout  << "--" << std::endl;
         for(auto& m: messages) {
-            //std::cout << " ";
-            //m.print();
             if(m.mtype==MessageType::ADD) {
                 add_order(m);
             }
@@ -245,10 +242,10 @@ class TransactionManager {
         }
 
         void update_states(int time) {
-            if(time==31171613 ) {
-                std::cout << "--" << std::endl;
-                book.print();
-            }
+            //if(time==31171613 ) {
+                //std::cout << "--" << std::endl;
+                //book.print();
+            //}
             if(have_bought && book.total_asks < target_size) {
                 std::cout << time << " B NA" <<  std::endl;
                 expenditure = -1;
