@@ -39,5 +39,6 @@ int main(int argc, char** argv) {
     std::cout << "ADDs: " << n_add << ", REDUCE: " << n_reduce << std::endl;
     std::cout << "Average process time per record: " << (total_time/double(nlines))*1000 << "ms" <<
         std::endl;
+    std::cout << "Speed: " << nlines / total_time << " records per second" << std::endl;
     return 0;
 }
