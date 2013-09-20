@@ -141,9 +141,50 @@ class TransactionManager {
     std::istream *stream;
     OrderBook book;
 
+    bool purchase_state, sell_state;
+    double earnings, expenditure;
+
     public:
         TransactionManager(int target, std::istream &input_stream) :
-            nmessages(0), target_size(target), stream(&input_stream) { }
+            nmessages(0), target_size(target), stream(&input_stream),
+            purchase_state(false), sell_state(false) { }
+
+        double sell(int time) {
+            return -1.;
+        }
+
+        double purchase(int time) {
+            return 1.;
+        }
+        
+        void update_states(const Message &m) {
+            if(purchase_state && book.total_asks < target_size) {
+                std::cout << m.timestamp << " B NA" <<  std::endl;
+                purchase_state = false;
+            } 
+            if(sell_state && book.total_bids < target_size) {
+                std::cout << m.timestamp << " S NA" <<  std::endl;
+                sell_state = false;
+            }
+            if(book.total_asks >= target_size) {
+                purchase_state = true;
+                double cost = purchase(m.timestamp);
+                if(cost < expenditure) {
+                    expenditure = cost;
+                    std::cout << m.timestamp << " B " << expenditure <<  std::endl;
+                }
+            }
+            if(book.total_bids >= target_size) {
+                sell_state = true;
+                double income = sell(m.timestamp);
+                if(income > earnings) {
+                    earnings = income;
+                    std::cout << m.timestamp << " S " << earnings <<  std::endl;
+                }
+            }
+                    
+        }
+
 
         int process() {
             std::string line;
@@ -158,6 +199,7 @@ class TransactionManager {
 
                 Message m(tokens);
                 book.update(m);
+                update_states(m);
             }
             return nmessages;
         }
