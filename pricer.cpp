@@ -160,14 +160,12 @@ struct OrderBook {
         return 0;
     }
     
-    bool update(const std::vector<Message> &messages) {
-        for(auto& m: messages) {
-            if(m.mtype==MessageType::ADD) {
-                add_order(m);
-            }
-            if(m.mtype==MessageType::REDUCE) {
-                reduce_order(m);
-            }
+    bool update(const Message &m) {
+        if(m.mtype==MessageType::ADD) {
+            add_order(m);
+        }
+        if(m.mtype==MessageType::REDUCE) {
+            reduce_order(m);
         }
     }
 };
@@ -242,10 +240,6 @@ class TransactionManager {
         }
 
         void update_states(int time) {
-            //if(time==31171613 ) {
-                //std::cout << "--" << std::endl;
-                //book.print();
-            //}
             if(have_bought && book.total_asks < target_size) {
                 std::cout << time << " B NA" <<  std::endl;
                 expenditure = -1;
@@ -266,21 +260,12 @@ class TransactionManager {
 
         int process() {
             std::string line;
-            std::vector<Message> messages;
-
             while(std::getline(*stream,line)) {
                 nmessages++;
                 OrderTokens tokens = tokenize(line);
                 Message m(tokens);
-                m = Message(tokens);
-                messages.push_back(m);
-                book.update(messages);
+                book.update(m);
                 update_states(m.timestamp);
-                messages.clear();
-            }
-            if(messages.size() > 0 ) {
-                book.update(messages);
-                update_states(messages[0].timestamp);
             }
             return nmessages;
         }
