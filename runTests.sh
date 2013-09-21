@@ -1,6 +1,6 @@
 #! /bin/bash
 
-g++ -O2 -funroll-loops -std=c++11 pricer.cpp
+g++ -O2 -std=c++11 pricer.cpp
 
 sizes="1 200 10000"
 
