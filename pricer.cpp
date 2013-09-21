@@ -102,76 +102,89 @@ struct LookupCompare {
 
 
 struct OrderBook {
-    Book orders;
-    BookLookup asks, bids;
-    std::map<OrderType, BookLookup*> lookup_reference;
-    int total_asks, total_bids;    
+    private:
+        // require these to be private because "asks" and "bids" reference
+        // memory owned by orders.  Therefore we require that OrderBook handles
+        // the management of this memory such that the pointers in "asks" and
+        // "bids" do not become invalid
+        Book orders;
+        BookLookup asks, bids;
+    public:
+        // this allows us to choose whether we look at "asks" or "bids"
+        // depedning on the order type we are considering
+        std::map<OrderType, BookLookup*> lookup_reference;
+        int total_asks, total_bids;    
 
-    OrderBook() {
-        total_asks = 0;
-        total_bids = 0;
+        OrderBook() {
+            total_asks = 0;
+            total_bids = 0;
 
-        lookup_reference[OrderType::ASK] = &asks;
-        lookup_reference[OrderType::BID] = &bids;
-    }
-
-    void print() const {
-        for(auto& o : orders) {
-            o.second.print();
+            lookup_reference[OrderType::ASK] = &asks;
+            lookup_reference[OrderType::BID] = &bids;
         }
-    }
-        
-    bool order_exists(const std::string& ID) {
-        return orders.find(ID)!=orders.end();
-    }
-        
-    int add_order(const Message &m) {
-        if(!order_exists(m.ID)) {
-            Order o(m);
-            orders[m.ID] = o;
-            BookLookup * l = lookup_reference[m.otype];
-            //(*l)[m.ID] = &(orders[m.ID]);
-            Order* o_ptr = &(orders[m.ID]);
-            l->insert({m.ID,o_ptr});
-            if(o.type == OrderType::ASK) total_asks += o.size;
-            else if(o.type == OrderType::BID) total_bids += o.size;
-        } else {
-            std::cerr << "[ERR] received ADD order for existing order ID=" <<
-                m.ID << std::endl;
-            return -1;
-        }
-        return 0;
-    }
 
-    int reduce_order(const Message &m) {
-        if(order_exists(m.ID)) {
-            Book::iterator id_order = orders.find(m.ID);
-            int deduction = id_order->second.reduce(m);
-            if(id_order->second.type == OrderType::ASK) {
-                total_asks -= deduction;
-            } else if(id_order->second.type == OrderType::BID) {
-                total_bids -= deduction;
+        void print() const {
+            for(auto& o : orders) {
+                o.second.print();
             }
-            if(id_order->second.size<=0) {
-                lookup_reference[id_order->second.type]->erase(id_order->first);
-                orders.erase(id_order->first);
+        }
+            
+        bool order_exists(const std::string& ID) {
+            return orders.find(ID)!=orders.end();
+        }
+        
+        int add_order(const Message &m) {
+            if(!order_exists(m.ID)) {
+                Order o(m);
+                orders[m.ID] = o;
+                // hilarious unreadable one liner: (*l)[m.ID] = &(orders[m.ID]);
+                BookLookup * l = lookup_reference[m.otype];
+                // l is a pointer to either a book of BUYs or SELLs (see default
+                // ctor for OrderBook). 
+                // We then make the *value* of the map buy/sell [ID] be a
+                // pointer to the new record in OrderBook.orders
+                Order* o_ptr = &(orders[m.ID]);
+                l->insert({m.ID,o_ptr});
+                if(o.type == OrderType::ASK) total_asks += o.size;
+                else if(o.type == OrderType::BID) total_bids += o.size;
+            } else {
+                std::cerr << "[ERR] received ADD order for existing ID=" <<
+                    m.ID << std::endl;
+                return -1;
             }
-        } else {
-            std::cerr <<
-                "[ERR] received REDUCE order for non-existant order ID=" <<
-                m.ID << std::endl;
+            return 0;
         }
-        return 0;
-    }
-    
-    bool update(const Message &m) {
-        if(m.mtype==MessageType::ADD) {
-            add_order(m);
+
+        int reduce_order(const Message &m) {
+            if(order_exists(m.ID)) {
+                Book::iterator id_order = orders.find(m.ID);
+                int deduction = id_order->second.reduce(m);
+                if(id_order->second.type == OrderType::ASK) {
+                    total_asks -= deduction;
+                } else if(id_order->second.type == OrderType::BID) {
+                    total_bids -= deduction;
+                }
+                if(id_order->second.size<=0) {
+                    OrderType t = id_order->second.type;
+                    lookup_reference[t]->erase(id_order->first);
+                    orders.erase(id_order->first);
+                }
+            } else {
+                std::cerr <<
+                    "[ERR] received REDUCE order for non-existant order ID=" <<
+                    m.ID << std::endl;
+            }
+            return 0;
         }
-        if(m.mtype==MessageType::REDUCE) {
-            reduce_order(m);
+        
+        bool update(const Message &m) {
+            if(m.mtype==MessageType::ADD) {
+                add_order(m);
+            }
+            if(m.mtype==MessageType::REDUCE) {
+                reduce_order(m);
+            }
         }
-    }
 };
 
 class TransactionManager {
@@ -192,6 +205,7 @@ class TransactionManager {
         double make_sale(int time) {
             std::vector<BookLookupEntry> bid_portfolio(book.bids.begin(),
                     book.bids.end());
+            // copy out map into a vector of key:value pairs
             std::sort(bid_portfolio.begin(),bid_portfolio.end(),
                     LookupCompare());
             int total_sold = 0;
@@ -216,6 +230,7 @@ class TransactionManager {
         }
 
         double make_purchase(int time) {
+            static double diff(0);
             std::vector<BookLookupEntry> ask_portfolio(book.asks.begin(),
                     book.asks.end());
             std::sort(ask_portfolio.begin(),ask_portfolio.end(),
@@ -232,11 +247,15 @@ class TransactionManager {
                 total_price += buying * price;
                 p++;
             }
-            double diff = fabs(total_price - expenditure);
-            expenditure = total_price;
+            // we care about the *accumulated* change since we last printed
+            // a price point. once we have flucated enough to make a rounding
+            // change (0.005) we know that we need to print a new value
+            diff = fabs(total_price - expenditure);
             have_bought = true;
             if(diff >= 0.005) {
+                expenditure = total_price;
                 std::cout << time << " B " << expenditure << std::endl;
+                diff=0;
             }
             return total_price;
         }
