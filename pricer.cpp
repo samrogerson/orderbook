@@ -195,6 +195,7 @@ class TransactionManager {
 
     double earnings, expenditure;
     bool have_bought, have_sold;
+    double max_buying_price, min_sale_price;
 
     public:
         TransactionManager(int target, std::istream &input_stream) :
@@ -211,14 +212,17 @@ class TransactionManager {
             int total_sold = 0;
             double total_takings = 0;
             std::vector<BookLookupEntry>::iterator p = bid_portfolio.end();
+            p--;
+            min_sale_price = p->second->price;
             while(total_sold < target_size) {
-                p--;
                 int available = p->second->size;
                 double price = p->second->price;
+                if(price < min_sale_price) min_sale_price = price;
                 // only sell as much as we need / is available
                 int selling = std::min(available, target_size-total_sold);
                 total_sold += selling;
                 total_takings += selling * price;
+                p--;
             }
             double diff = fabs(total_takings - earnings);
             earnings = total_takings;
@@ -238,9 +242,11 @@ class TransactionManager {
             int total_bought = 0;
             double total_price = 0;
             std::vector<BookLookupEntry>::iterator p = ask_portfolio.begin();
+            max_buying_price = p->second->price;
             while(total_bought < target_size) {
                 int available = p->second->size;
                 double price = p->second->price;
+                if(price > max_buying_price) max_buying_price = price;
                 // only buy as much as we need / is available
                 int buying = std::min(available, target_size-total_bought);
                 total_bought += buying;
@@ -260,25 +266,29 @@ class TransactionManager {
             return total_price;
         }
 
-        void update_positions(int time) {
+        void update_positions(const Message &m) { //int time, OrderType o) {
             // we want to reset if we've bought/sold before and the market no
             // longer supports our target_size
             if(have_bought && book.total_asks < target_size) {
-                std::cout << time << " B NA" <<  std::endl;
+                std::cout << m.timestamp << " B NA" <<  std::endl;
                 expenditure = -1;
                 have_bought = false;
             } 
             if(have_sold && book.total_bids < target_size) {
-                std::cout << time << " S NA" <<  std::endl;
+                std::cout << m.timestamp << " S NA" <<  std::endl;
                 earnings = 0;
                 have_sold = false;
             }
             // if there is sufficienty supply/demand in the mark buy/sell
-            if(book.total_asks >= target_size) {
-                make_purchase(time);
+            if(book.total_asks >= target_size && m.otype!=OrderType::BID) {
+                bool impact = (m.price < max_buying_price) || m.mtype==MessageType::REDUCE;
+                if(!have_bought || impact)
+                    make_purchase(m.timestamp);
             }
-            if(book.total_bids >= target_size) {
-                make_sale(time);
+            if(book.total_bids >= target_size && m.otype!=OrderType::ASK) {
+                bool impact = (m.price > min_sale_price) ||  m.mtype==MessageType::REDUCE;
+                if(!have_sold || impact) 
+                    make_sale(m.timestamp);
             }
         }
 
@@ -295,7 +305,7 @@ class TransactionManager {
                     // given the error checking here atoi/l is sufficient
                     if(m.size > 0) {
                         book.update(m);
-                        update_positions(m.timestamp);
+                        update_positions(m);
                     } else {
                         std::cerr << "[ERR] malformed message: size 0" <<
                             std::endl;
