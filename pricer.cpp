@@ -23,6 +23,7 @@ typedef std::pair<std::string, int> Transaction;
 enum class MessageType : char { ADD='A', REDUCE='R' };
 enum class OrderType : char { BID='B', ASK='S', NA };
 
+// take a string and split by spaces 
 OrderTokens tokenize(std::string& line) {
     std::istringstream iss(line);
     OrderTokens tokens;
@@ -42,9 +43,9 @@ struct Message {
 
     Message(OrderTokens &tokens) : mtype(MessageType(tokens[1].c_str()[0])),
     ID(tokens[2]), timestamp(atoi(tokens[0].c_str())) {
+        // the position of the order size changes dependign on the type
         int size_pos = (mtype == MessageType::ADD) ? 5 : 3;
         size = atoi(tokens[size_pos].c_str());
-        // this is being checked twice because of above: combine
         if(mtype == MessageType::ADD) {
             otype = OrderType(tokens[3].c_str()[0]);
             price = atof(tokens[4].c_str());
@@ -92,7 +93,8 @@ struct Order {
 };
 
 struct LookupCompare {
-        // sort iterable of pairs of <ID, Order> by increasing price.
+        // predicate function: sort iterable of pairs of <ID, Order> by
+        // increasing price.
         bool operator()(const BookLookupEntry &lhs, const BookLookupEntry &rhs){
             return lhs.second->price < rhs.second->price;
         }
@@ -119,7 +121,6 @@ struct OrderBook {
         }
     }
         
-
     bool order_exists(const std::string& ID) {
         return orders.find(ID)!=orders.end();
     }
@@ -196,14 +197,13 @@ class TransactionManager {
             int total_sold = 0;
             double total_takings = 0;
             std::vector<BookLookupEntry>::iterator p = bid_portfolio.end();
-            std::vector<Transaction> transactions;
             while(total_sold < target_size) {
                 p--;
                 int available = p->second->size;
                 double price = p->second->price;
+                // only sell as much as we need / is available
                 int selling = std::min(available, target_size-total_sold);
                 total_sold += selling;
-                transactions.push_back({p->first, selling});
                 total_takings += selling * price;
             }
             double diff = fabs(total_takings - earnings);
@@ -223,13 +223,12 @@ class TransactionManager {
             int total_bought = 0;
             double total_price = 0;
             std::vector<BookLookupEntry>::iterator p = ask_portfolio.begin();
-            std::vector<Transaction> transactions;
             while(total_bought < target_size) {
                 int available = p->second->size;
                 double price = p->second->price;
+                // only buy as much as we need / is available
                 int buying = std::min(available, target_size-total_bought);
                 total_bought += buying;
-                transactions.push_back({p->first, buying});
                 total_price += buying * price;
                 p++;
             }
@@ -243,6 +242,8 @@ class TransactionManager {
         }
 
         void update_positions(int time) {
+            // we want to reset if we've bought/sold before and the market no
+            // longer supports our target_size
             if(have_bought && book.total_asks < target_size) {
                 std::cout << time << " B NA" <<  std::endl;
                 expenditure = -1;
@@ -253,6 +254,7 @@ class TransactionManager {
                 earnings = 0;
                 have_sold = false;
             }
+            // if there is sufficienty supply/demand in the mark buy/sell
             if(book.total_asks >= target_size) {
                 make_purchase(time);
             }
@@ -266,8 +268,12 @@ class TransactionManager {
             while(std::getline(*stream,line)) {
                 nmessages++;
                 OrderTokens tokens = tokenize(line);
-                if(tokens.size() >= 4 ) {
+                // check our line contains sufficient data to form a message
+                if(tokens.size() >= 4 ) { 
                     Message m(tokens);
+                    // does our message correspond to actual stock?
+                    // strol is more robust for non-string cases but is slower
+                    // given the error checking here atoi/l is sufficient
                     if(m.size > 0) {
                         book.update(m);
                         update_positions(m.timestamp);
