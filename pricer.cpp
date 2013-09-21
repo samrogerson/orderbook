@@ -225,16 +225,16 @@ class TransactionManager {
                 p--;
             }
             double diff = fabs(total_takings - earnings);
-            earnings = total_takings;
             have_sold = true;
             if(diff >= 0.005) {
+                earnings = total_takings;
                 std::cout << time << " S " << earnings <<  std::endl;
+                diff=0;
             }
             return total_takings;
         }
 
         double make_purchase(int time) {
-            static double diff(0);
             std::vector<BookLookupEntry> ask_portfolio(book.asks.begin(),
                     book.asks.end());
             std::sort(ask_portfolio.begin(),ask_portfolio.end(),
@@ -256,7 +256,7 @@ class TransactionManager {
             // we care about the *accumulated* change since we last printed
             // a price point. once we have flucated enough to make a rounding
             // change (0.005) we know that we need to print a new value
-            diff = fabs(total_price - expenditure);
+            double diff = fabs(total_price - expenditure);
             have_bought = true;
             if(diff >= 0.005) {
                 expenditure = total_price;
