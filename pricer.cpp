@@ -103,13 +103,13 @@ struct LookupCompare {
 
 struct OrderBook {
     private:
-        // require these to be private because "asks" and "bids" reference
+        // require this to be private because "asks" and "bids" reference
         // memory owned by orders.  Therefore we require that OrderBook handles
         // the management of this memory such that the pointers in "asks" and
         // "bids" do not become invalid
         Book orders;
-        BookLookup asks, bids;
     public:
+        BookLookup asks, bids;
         // this allows us to choose whether we look at "asks" or "bids"
         // depedning on the order type we are considering
         std::map<OrderType, BookLookup*> lookup_reference;
