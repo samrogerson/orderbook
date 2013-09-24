@@ -1,13 +1,20 @@
 #! /bin/bash
 
-g++ -O2 -std=c++11 -o io.x testing/io.cpp 
-./io.x < data/pricer.in
-cat data/pricer.in | ./io.x
+g++ -std=c++11 -march=native -O2 -o spirit.x testing/spirit_test.cpp
 
+echo "Redirect File"
+echo "============="
+./spirit.x < data/pricer.in
+echo
+echo "Pipeline"
+echo "========"
+cat data/pricer.in | ./spirit.x
+
+#bin="spirit.x"
 #sizes="1 200 10000"
 
 #for size in ${sizes[@]}; 
 #do
-    #./a.out $size < data/pricer.in > test.out.$size
+    #./${bin} $size < data/pricer.in > test.out.$size
     #diff test.out.$size data/pricer.out.$size
 #done

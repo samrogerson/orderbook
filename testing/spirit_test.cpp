@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 #include <ctime>
+#include <iterator>
 
 namespace client
 {
@@ -103,10 +104,10 @@ main()
         if (r && iter == end) {
             nlines++;
         } else {
-            success = false;
-            break;
+            std::cerr << "Failed to parse line: " << str << std::endl;
         }
     }
+
     end=clock();
     total_time = (double)(end-start)/CLOCKS_PER_SEC;
 
@@ -120,7 +121,7 @@ main()
     std::cout << (double)(nlines / total_time) << " lines per second" << std::endl;
 
     std::cout << "Final Line"  <<  std::endl <<
-                 "=========="  <<  std::endl <<
+                 "----------"  <<  std::endl <<
                  "Timestamp: " <<  messages.back().timestamp << std::endl <<
                  "mtype:     " <<  messages.back().mtype     << std::endl <<
                  "id:        " <<  messages.back().id        << std::endl <<
