@@ -6,9 +6,9 @@ echo "Redirect File"
 echo "============="
 ./spirit.x < data/pricer.in
 echo
-echo "Pipeline"
-echo "========"
-cat data/pricer.in | ./spirit.x
+#echo "Pipeline"
+#echo "========"
+#cat data/pricer.in | ./spirit.x
 
 #bin="spirit.x"
 #sizes="1 200 10000"
