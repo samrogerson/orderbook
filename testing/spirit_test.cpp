@@ -1,3 +1,5 @@
+/* g++ -std=c++11 -march=native -O2 -o spirit.x spirit_test.cpp */
+
 #include <boost/config/warning_disable.hpp>
 #include <boost/spirit/include/qi.hpp>
 #include <boost/spirit/include/phoenix_core.hpp>
@@ -110,6 +112,7 @@ main()
     }
 
     std::cout << "Took " << total_time << " seconds" << std::endl;
+    std::cout << (double)(nlines / total_time) << " lines per second" << std::endl;
 
     return 0;
 }
