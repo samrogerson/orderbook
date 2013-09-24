@@ -9,8 +9,8 @@
 #include <boost/fusion/include/io.hpp>
 #include <boost/spirit/include/qi_lit.hpp>
 #include <boost/spirit/include/qi_hold.hpp>
-//#include <boost/phoenix/object/static_cast.hpp>
 
+#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -97,13 +97,15 @@ namespace pricer
     struct orderbook {
         typedef std::unordered_map<std::string, std::shared_ptr<order> > Book;
         typedef std::multimap<int, std::shared_ptr<order> > BookIndex;
+        
+        int target_size;
 
         Book orders;
         BookIndex asks, bids;
         double minimum_selling_price, maximum_buying_price;
 
-        orderbook() : minimum_selling_price(0), maximum_buying_price(0) {
-        }
+        orderbook(int ts) : minimum_selling_price(0), maximum_buying_price(0),
+                target_size(ts) { } 
 
         void buy() {
         }
@@ -199,14 +201,21 @@ fetch_messages(std::vector<pricer::message>* messages, int nmessages=2e6) {
 }
 
 int
-main()
+main(int argc, char** argv)
 {
+    if(argc < 2) {
+        std::cout << "This program takes 1 argument" << std::endl;
+        return -1;
+    }
+
+    int target_size = atoi(argv[1]);
+
     std::vector<pricer::message> messages;
 
     clock_t start, end;
     double total_time;
 
-    pricer::orderbook book;
+    pricer::orderbook book(target_size);
     start=clock();
     fetch_messages(&messages);
     unsigned int nlines = book.process_messages(messages);

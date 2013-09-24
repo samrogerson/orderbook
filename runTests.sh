@@ -5,11 +5,11 @@ g++ -std=c++11 -march=native -O2 -o ${bin} pricer.cpp
 
 echo "Redirect File"
 echo "============="
-./${bin} < data/pricer.in
+./${bin} < data/pricer.in 10000
 echo
 echo "Pipeline"
 echo "========"
-cat data/pricer.in | ./${bin}
+cat data/pricer.in | ./${bin} 10000
 echo
 
 #sizes="1 200 10000"
