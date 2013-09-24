@@ -1,16 +1,17 @@
 #! /bin/bash
 
-g++ -std=c++11 -march=native -O2 -o spirit.x testing/spirit_test.cpp
+bin="pricer.x"
+g++ -std=c++11 -march=native -O2 -o ${bin} pricer.cpp
 
 echo "Redirect File"
 echo "============="
-./spirit.x < data/pricer.in
+./${bin} < data/pricer.in
 echo
-#echo "Pipeline"
-#echo "========"
-#cat data/pricer.in | ./spirit.x
+echo "Pipeline"
+echo "========"
+cat data/pricer.in | ./${bin}
+echo
 
-#bin="spirit.x"
 #sizes="1 200 10000"
 
 #for size in ${sizes[@]}; 
