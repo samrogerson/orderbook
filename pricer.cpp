@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <algorithm>
 #include <unordered_map>
 #include <map>
 
@@ -92,6 +93,10 @@ namespace pricer
 
         order(const char &t, const double &p, const int &q, const std::string &s) : type(t),
                 price(p), quantity(q), id(s) {}
+
+        void print() {
+            std::cout << type << " " << quantity << " " << id << " " << price << std::endl;
+        }
     };
 
     struct orderbook {
@@ -99,63 +104,140 @@ namespace pricer
         typedef std::multimap<int, std::shared_ptr<order> > BookIndex;
         
         int target_size;
-
+        int total_asks, total_bids;
         Book orders;
         BookIndex asks, bids;
         double minimum_selling_price, maximum_buying_price;
+        double total_sales, total_purchases;
 
-        orderbook(int ts) : minimum_selling_price(0), maximum_buying_price(0),
-                target_size(ts) { } 
+        orderbook(int ts) : minimum_selling_price(0), maximum_buying_price(0), total_asks(0),
+                total_bids(0), total_sales(0), total_purchases(0), target_size(ts) { } 
 
-        void buy() {
+        void buy(int timestamp) {
+            bool sufficient_stock = total_asks > target_size;
+            bool have_bought = total_purchases > 0;
+            if(!sufficient_stock && have_bought) {
+                maximum_buying_price = 0;
+                total_purchases = 0;
+                std::cout << timestamp << " B NA" <<  std::endl;
+            } else if(sufficient_stock) {
+                BookIndex::iterator it = asks.begin(); 
+                int bought(0);
+                double cost(0);
+                double max_price(0);
+                while(it != asks.end() && bought < target_size) {
+                    int quantity = it->second->quantity;
+                    int to_buy = std::min(target_size - bought, quantity);
+                    cost += to_buy * (it->second->price);
+                    max_price = std::max(it->second->price, max_price);
+                    bought += to_buy;
+                    ++it;
+                }
+                if(cost < total_purchases || !have_bought) {
+                    total_purchases = cost;
+                    maximum_buying_price = max_price;
+                    std::cout << timestamp << " B " << total_purchases << std::endl;
+                }
+            }
         }
 
-        void sell() {
+        void sell(int timestamp) {
+            bool sufficient_stock = total_bids > target_size;
+            bool have_sold = total_sales > 0;
+            if(!sufficient_stock && have_sold) {
+                total_sales = 0;
+                minimum_selling_price = 0;
+                std::cout << timestamp << " S NA" <<  std::endl;
+            } else if(sufficient_stock) { 
+                BookIndex::iterator it = bids.begin(); 
+                int sold(0);
+                double takings(0);
+                double min_price(it->second->price);
+                while(it != bids.end() && sold < target_size) {
+                    int quantity = it->second->quantity;
+                    int to_sell = std::min(target_size - sold, quantity);
+                    takings += to_sell * (it->second->price);
+                    min_price = std::min(it->second->price, min_price);
+                    sold += to_sell;
+                    ++it;
+                }
+                if(takings > total_sales) {
+                    total_sales = takings;
+                    minimum_selling_price = min_price;
+                    std::cout << timestamp << " S " << total_sales << std::endl;
+                }
+            }
         }
 
-        bool remove_order(Book::iterator &o) {
+        int process_add_order(const message &m) {
+            bool do_buy(false), do_sell(false);
+            // processing addition 
+            auto o = std::make_shared<order>(m.otype,m.price,m.quantity,m.id);
+            orders.insert({m.id,o});
+            int idx = static_cast<int>(m.price*100);
+            if(m.otype=='S') {
+                asks.insert({idx,o});
+                total_asks += o->quantity;
+                do_buy |= m.price < maximum_buying_price || maximum_buying_price == 0;
+            } else {
+                bids.insert({idx,o});
+                total_bids += o->quantity;
+                do_sell |= m.price > minimum_selling_price || minimum_selling_price == 0;
+            }
+            if(do_buy) return 1;
+            if(do_sell) return 2;
+            return 0;
+        }
 
+        int process_removal_order(const message &m) {
+            bool do_buy(false), do_sell(false);
+            // removal
+            bool clean_order(false);
+            Book::iterator str_order = orders.find(m.id);
+            double price = str_order->second->price;
+            int order_quantity = str_order->second->quantity;
+            int deduction(m.quantity);
+            if(order_quantity <= m.quantity) { // fully remove
+                clean_order = true;
+                deduction = order_quantity;
+                int k = static_cast<int>(price*100);
+                BookIndex *index = (str_order->second->type == 'A') ? &asks : &bids;
+                auto match = index->equal_range(k);
+                for(auto it=match.first; it!= match.second; ++it) { // remove matching
+                    if(it->second->id == m.id) {
+                        index->erase(it);
+                        break;
+                    }
+                }
+            } else {
+                str_order->second->quantity -= deduction;
+            }
+            if(str_order->second->type == 'S') {
+                total_asks -= deduction;
+                do_buy |=  price <= maximum_buying_price && total_purchases > 0;
+            } else {
+                total_bids -= deduction;
+                do_sell |= price >= minimum_selling_price && total_sales > 0;
+            }
+            if(clean_order) orders.erase(str_order);
+            
+            if(do_buy) return 1;
+            if(do_sell) return 2;
+            return 0;
         }
 
         bool process_message(const message &m) {
-            bool do_buy(false), do_sell(false);
+            int action(0);
             if(m.mtype=='A') {
-                // processing addition 
-                auto o = std::make_shared<order>(m.otype,m.price,m.quantity,m.id);
-                orders.insert({m.id,o});
-                if(m.otype=='A') {
-                    asks.insert({static_cast<int>(m.price*100),o});
-                    do_buy |= m.price < maximum_buying_price && maximum_buying_price > 0;
-                } else {
-                    bids.insert({static_cast<int>(m.price*100),o});
-                    do_sell |= m.price > minimum_selling_price && minimum_selling_price > 0;
-                }
+                action = process_add_order(m);
             } else {
-                Book::iterator o = orders.find(m.id);
-                double price = o->second->price;
-                int prev_quantity = o->second->quantity;
-                if(o->second->quantity <= m.quantity) { // need to remove it from teh indices
-                    // fully remove
-                    int k = static_cast<int>(o->second->price*100);
-                    BookIndex *index = (o->second->type == 'A') ? &asks : &bids;
-                    auto match = index->equal_range(k);
-                    for(auto it=match.first; it!= match.second; ++it) { // remove matching
-                        if(it->second->id == m.id) {
-                            index->erase(it);
-                            break;
-                        }
-                    }
-                    do_buy |= o->second->type =='A' && price < maximum_buying_price;
-                    do_sell |= o->second->type =='B' && price > minimum_selling_price;
-                    orders.erase(o);
-                } else {
-                    o->second->quantity -= m.quantity;
-                    do_buy |= o->second->type =='A' && price < maximum_buying_price;
-                    do_sell |= o->second->type =='B' && price > minimum_selling_price;
-                }
+                action = process_removal_order(m);
             }
-            if(do_buy) buy();
-            if(do_sell) sell();
+            if(action==1) {
+                buy(m.timestamp);
+            } else if(action==2) {
+                sell(m.timestamp);
+            }
             return true;
         }
 
@@ -165,6 +247,12 @@ namespace pricer
                 nmess += process_message(m);
             }
             return nmess;
+        }
+
+        void print() {
+            for(auto &s_o: orders) {
+                s_o.second->print();
+            }
         }
     };
 }
@@ -207,8 +295,10 @@ main(int argc, char** argv)
         std::cout << "This program takes 1 argument" << std::endl;
         return -1;
     }
-
     int target_size = atoi(argv[1]);
+
+    std::cout << std::fixed;
+    std::cout.precision(2);
 
     std::vector<pricer::message> messages;
 
@@ -223,12 +313,11 @@ main(int argc, char** argv)
 
     total_time = (double)(end-start)/CLOCKS_PER_SEC;
 
-    std::cout << "Parsed " << nlines << " lines successfully" << std::endl;
-    std::cout << "Took " << total_time << " seconds" << std::endl;
-    std::cout << (double)(nlines / total_time) << " lines per second" << std::endl;
-
-    std::cout << "Final Line"  <<  std::endl << "----------"  <<  std::endl;
-    messages.back().print();
+    std::cout << "Last message time: " <<  messages.back().timestamp << std::endl;
+    book.print();
+    //std::cout << "Parsed " << nlines << " lines successfully" << std::endl;
+    //std::cout << "Took " << total_time << " seconds" << std::endl;
+    //std::cout << (double)(nlines / total_time) << " lines per second" << std::endl;
 
     return 0;
 }
