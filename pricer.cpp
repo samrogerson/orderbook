@@ -33,6 +33,11 @@ namespace pricer
         char otype;
         double price;
         int quantity;
+
+        void print() {
+            std::cout << timestamp << " " << mtype << " " << id << " " << 
+                otype << " " << price << " " << quantity << std::endl;
+        }
     };
 }
 
@@ -213,13 +218,8 @@ main()
     std::cout << "Took " << total_time << " seconds" << std::endl;
     std::cout << (double)(nlines / total_time) << " lines per second" << std::endl;
 
-    std::cout << "Final Line"  <<  std::endl <<
-                 "----------"  <<  std::endl <<
-                 "Timestamp: " <<  messages.back().timestamp << std::endl <<
-                 "mtype:     " <<  messages.back().mtype     << std::endl <<
-                 "id:        " <<  messages.back().id        << std::endl <<
-                 "otype:     " <<  messages.back().otype     << std::endl <<
-                 "quantity:  " <<  messages.back().quantity  << std::endl;
+    std::cout << "Final Line"  <<  std::endl << "----------"  <<  std::endl;
+    messages.back().print();
 
     return 0;
 }
