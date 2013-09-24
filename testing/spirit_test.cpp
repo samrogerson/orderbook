@@ -15,6 +15,7 @@
 #include <vector>
 #include <ctime>
 #include <iterator>
+#include <sstream>
 
 namespace pricer
 {
@@ -70,44 +71,54 @@ namespace pricer
         }
         qi::rule<Iterator, message(), ascii::space_type> start;
     };
+
+    struct orderbook {
+    };
 }
 
-int
-main()
-{
+unsigned int
+fetch_messages(std::vector<pricer::message>* messages, int nmessages=2e6) {
     using boost::spirit::ascii::space;
     typedef std::string::const_iterator iterator_type;
     typedef pricer::message_parser<iterator_type> message_parser;
 
     message_parser g;
+
+    messages->reserve(nmessages);
     std::string str;
     str.reserve(32);
 
-    unsigned int nlines(0);
-
-    clock_t start, end;
-    double total_time;
-    start=clock();
+    unsigned int parsed_messages(0);
     std::ios_base::sync_with_stdio (false);
-    std::vector<pricer::message> messages;
-    messages.reserve(2e6);
-
     while (getline(std::cin, str))
     {
         pricer::message message;
         std::string::const_iterator iter = str.begin();
         std::string::const_iterator end = str.end();
         bool r = phrase_parse(iter, end, g, space, message);
-        messages.push_back(message);
+        messages->push_back(message);
         
         if (r && iter == end) {
-            nlines++;
+            parsed_messages++;
         } else {
             std::cerr << "Failed to parse line: " << str << std::endl;
         }
     }
+    return parsed_messages;
+}
 
+int
+main()
+{
+    std::vector<pricer::message> messages;
+
+    clock_t start, end;
+    double total_time;
+
+    start=clock();
+    unsigned int nlines = fetch_messages(&messages);
     end=clock();
+
     total_time = (double)(end-start)/CLOCKS_PER_SEC;
 
     std::cout << "Parsed " << nlines << " lines successfully" << std::endl;
