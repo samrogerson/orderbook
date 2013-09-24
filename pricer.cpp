@@ -10,7 +10,6 @@
 #include <boost/spirit/include/qi_lit.hpp>
 #include <boost/spirit/include/qi_hold.hpp>
 
-#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -18,6 +17,9 @@
 #include <algorithm>
 #include <unordered_map>
 #include <map>
+
+#include <cstdlib>
+#include <cmath>
 
 #include <ctime>
 
@@ -133,7 +135,7 @@ namespace pricer
                     bought += to_buy;
                     ++it;
                 }
-                if(static_cast<int>(cost*100) - static_cast<int>(total_purchases*100) != 0) {
+                if(floor(cost*100 + 0.5) - floor(total_purchases*100 + 0.5) != 0) {
                     total_purchases = cost;
                     maximum_buying_price = max_price;
                     std::cout << timestamp << " B " << total_purchases << std::endl;
@@ -162,7 +164,8 @@ namespace pricer
                     sold += to_sell;
                     ++it;
                 }
-                if(static_cast<int>(takings*100) - static_cast<int>(total_sales*100) != 0) {
+                int diff = floor(takings*100. + 0.5) - floor(total_sales*100. + 0.5);
+                if(diff !=0) {
                     total_sales = takings;
                     minimum_selling_price = min_price;
                     std::cout << timestamp << " S " << total_sales << std::endl;
@@ -175,7 +178,7 @@ namespace pricer
             // processing addition 
             auto o = std::make_shared<order>(m.otype,m.price,m.quantity,m.id);
             orders.insert({m.id,o});
-            int idx = static_cast<int>(m.price*100);
+            int idx = floor(m.price*100 + 0.5);
             if(m.otype=='S') {
                 asks.insert({idx,o});
                 total_asks += o->quantity;
@@ -201,7 +204,7 @@ namespace pricer
             if(order_quantity <= m.quantity) { // fully remove from indices
                 clean_order = true;
                 deduction = order_quantity;
-                int k = static_cast<int>(price*100);
+                int k = floor(price*100 + 0.5);
                 BookIndex *index = (id_order->second->type == 'S') ? &asks : &bids;
                 auto match = index->equal_range(k);
                 for(auto it=match.first; it!= match.second; ++it) { // remove matching
@@ -229,7 +232,7 @@ namespace pricer
 
         bool process_message(const message &m) {
             int action(0);
-            if(m.timestamp==32913788) print(3);
+            //if(m.timestamp==32913788) print();
             if(m.mtype=='A') {
                 action = process_add_order(m);
             } else {
@@ -240,6 +243,10 @@ namespace pricer
             } else if(action==2) {
                 sell(m.timestamp);
             }
+            //if(m.timestamp==32913788) {
+                //std::cout << "==a==" << std::endl;
+                //print();
+            //}
             return true;
         }
 
