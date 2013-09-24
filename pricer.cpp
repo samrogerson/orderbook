@@ -314,7 +314,7 @@ main(int argc, char** argv)
     total_time = (double)(end-start)/CLOCKS_PER_SEC;
 
     std::cout << "Last message time: " <<  messages.back().timestamp << std::endl;
-    book.print();
+    //book.print();
     //std::cout << "Parsed " << nlines << " lines successfully" << std::endl;
     //std::cout << "Took " << total_time << " seconds" << std::endl;
     //std::cout << (double)(nlines / total_time) << " lines per second" << std::endl;
