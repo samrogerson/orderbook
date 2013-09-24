@@ -52,20 +52,23 @@ namespace pricer
         {
             using qi::int_;
             using qi::double_;
+            using qi::as_string;
+            using qi::lexeme;
+            using qi::attr;
             using ascii::char_;
 
             start %= qi::hold[int_
                 >>  char_
-                >>  qi::as_string[qi::lexeme[+~char_(' ')]]
+                >>  as_string[lexeme[+~char_(' ')]]
                 >>  char_
                 >>  double_
                 >>  int_]
                 |
                 int_
                 >>  char_
-                >>  qi::as_string[qi::lexeme[+~char_(' ')]]
-                >>  qi::attr('0')
-                >>  qi::attr(-1)
+                >>  as_string[lexeme[+~char_(' ')]]
+                >>  attr('0')
+                >>  attr(-1)
                 >>  int_
                 ;
         }
