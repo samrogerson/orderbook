@@ -105,12 +105,10 @@ namespace pricer
         typedef std::unordered_map<std::string, std::shared_ptr<order> > Book;
         typedef std::multimap<int, std::shared_ptr<order> > BookIndex;
         
-        int target_size;
-        int total_asks, total_bids;
+        int target_size, total_asks, total_bids;
+        double minimum_selling_price, maximum_buying_price, total_sales, total_purchases;
         Book orders;
         BookIndex asks, bids;
-        double minimum_selling_price, maximum_buying_price;
-        double total_sales, total_purchases;
 
         orderbook(int ts) : minimum_selling_price(0), maximum_buying_price(0), total_asks(0),
                 total_bids(0), total_sales(0), total_purchases(0), target_size(ts) { } 
@@ -232,7 +230,6 @@ namespace pricer
 
         bool process_message(const message &m) {
             int action(0);
-            //if(m.timestamp==32913788) print();
             if(m.mtype=='A') {
                 action = process_add_order(m);
             } else {
@@ -243,10 +240,6 @@ namespace pricer
             } else if(action==2) {
                 sell(m.timestamp);
             }
-            //if(m.timestamp==32913788) {
-                //std::cout << "==a==" << std::endl;
-                //print();
-            //}
             return true;
         }
 
@@ -254,38 +247,14 @@ namespace pricer
             int nmess = 0;
             for(const auto &m: messages) {
                 nmess += process_message(m);
-                //std::cout << "@ " << m.timestamp << "asks = " << total_asks << ", bids = " << total_bids << std::endl;
-                //print();
             }
             return nmess;
         }
 
-        void print(int sel=0) {
-            std::cout << "----------------" << std::endl;
-            if(sel==0 || sel == 1) {
-                std::cout << "Book" << std::endl;
-                std::cout << "====" << std::endl;
-                for(auto &s_o: orders) {
-                    s_o.second->print();
-                }
+        void print() {
+            for(auto &s_o: orders) {
+                s_o.second->print();
             }
-            if(sel==0 || sel == 2) {
-                std::cout << "Asks" << std::endl;
-                std::cout << "====" << std::endl;
-                for(auto &s_o: asks) {
-                    std::cout << s_o.first << ": ";
-                    s_o.second->print();
-                }
-            }
-            if(sel==0 || sel == 3) {
-                std::cout << "Bids" << std::endl;
-                std::cout << "====" << std::endl;
-                for(auto &s_o: bids) {
-                    std::cout << s_o.first << ": ";
-                    s_o.second->print();
-                }
-            }
-            std::cout << "----------------" << std::endl;
         }
     };
 }
@@ -338,19 +307,14 @@ main(int argc, char** argv)
     clock_t start, end;
     double total_time;
 
-    pricer::orderbook book(target_size);
     start=clock();
+    pricer::orderbook book(target_size);
     fetch_messages(&messages);
     unsigned int nlines = book.process_messages(messages);
     end=clock();
 
     total_time = (double)(end-start)/CLOCKS_PER_SEC;
-
-    //book.print();
-    std::cout << "Last line: " << messages.back().timestamp << std::endl;
-    std::cout << "Parsed " << nlines << " lines successfully" << std::endl;
     std::cout << "Took " << total_time << " seconds" << std::endl;
-    std::cout << (double)(nlines / total_time) << " lines per second" << std::endl;
 
     return 0;
 }
