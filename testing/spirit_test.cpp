@@ -125,15 +125,15 @@ namespace pricer
                 }
             } else {
                 Book::iterator o = orders.find(m.id);
+                double price = o->second->price;
                 int prev_quantity = o->second->quantity;
                 if(o->second->quantity <= m.quantity) { // need to remove it from teh indices
                     // fully remove
-                    double price = o->second->price;
                     int k = static_cast<int>(o->second->price*100);
                     BookIndex *index = (o->second->type == 'A') ? &asks : &bids;
-                    auto match = index->equal_range(k)
-                    for(auto it=match.first; it!= match.second; ++match) { // remove matching
-                        if(it->id == m.id) {
+                    auto match = index->equal_range(k);
+                    for(auto it=match.first; it!= match.second; ++it) { // remove matching
+                        if(it->second->id == m.id) {
                             index->erase(it);
                             break;
                         }
