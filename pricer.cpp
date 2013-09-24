@@ -114,7 +114,7 @@ namespace pricer
                 total_bids(0), total_sales(0), total_purchases(0), target_size(ts) { } 
 
         void buy(int timestamp) {
-            bool sufficient_stock = total_asks > target_size;
+            bool sufficient_stock = total_asks >= target_size;
             bool have_bought = total_purchases > 0;
             if(!sufficient_stock && have_bought) {
                 maximum_buying_price = 0;
@@ -142,7 +142,7 @@ namespace pricer
         }
 
         void sell(int timestamp) {
-            bool sufficient_stock = total_bids > target_size;
+            bool sufficient_stock = total_bids >= target_size;
             bool have_sold = total_sales > 0;
 
             if(!sufficient_stock && have_sold) {
@@ -219,7 +219,6 @@ namespace pricer
             } else {
                 total_bids -= deduction;
                 do_sell |= price >= minimum_selling_price && total_sales > 0;
-                // TODO other end of logic problem
             }
             if(clean_order) orders.erase(id_order);
             
@@ -230,6 +229,7 @@ namespace pricer
 
         bool process_message(const message &m) {
             int action(0);
+            if(m.timestamp==32913788) print(3);
             if(m.mtype=='A') {
                 action = process_add_order(m);
             } else {
@@ -247,6 +247,7 @@ namespace pricer
             int nmess = 0;
             for(const auto &m: messages) {
                 nmess += process_message(m);
+                //std::cout << "@ " << m.timestamp << "asks = " << total_asks << ", bids = " << total_bids << std::endl;
                 //print();
             }
             return nmess;
@@ -339,6 +340,7 @@ main(int argc, char** argv)
     total_time = (double)(end-start)/CLOCKS_PER_SEC;
 
     //book.print();
+    std::cout << "Last line: " << messages.back().timestamp << std::endl;
     std::cout << "Parsed " << nlines << " lines successfully" << std::endl;
     std::cout << "Took " << total_time << " seconds" << std::endl;
     std::cout << (double)(nlines / total_time) << " lines per second" << std::endl;
