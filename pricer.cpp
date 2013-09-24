@@ -133,7 +133,7 @@ namespace pricer
                     bought += to_buy;
                     ++it;
                 }
-                if(cost < total_purchases || !have_bought) {
+                if(static_cast<int>(cost*100) - static_cast<int>(total_purchases*100) != 0) {
                     total_purchases = cost;
                     maximum_buying_price = max_price;
                     std::cout << timestamp << " B " << total_purchases << std::endl;
@@ -144,16 +144,17 @@ namespace pricer
         void sell(int timestamp) {
             bool sufficient_stock = total_bids > target_size;
             bool have_sold = total_sales > 0;
+
             if(!sufficient_stock && have_sold) {
                 total_sales = 0;
                 minimum_selling_price = 0;
                 std::cout << timestamp << " S NA" <<  std::endl;
             } else if(sufficient_stock) { 
-                BookIndex::iterator it = bids.begin(); 
+                BookIndex::reverse_iterator it = bids.rbegin(); 
                 int sold(0);
                 double takings(0);
                 double min_price(it->second->price);
-                while(it != bids.end() && sold < target_size) {
+                while(it != bids.rend() && sold < target_size) {
                     int quantity = it->second->quantity;
                     int to_sell = std::min(target_size - sold, quantity);
                     takings += to_sell * (it->second->price);
@@ -161,7 +162,7 @@ namespace pricer
                     sold += to_sell;
                     ++it;
                 }
-                if(takings > total_sales) {
+                if(static_cast<int>(takings*100) - static_cast<int>(total_sales*100) != 0) {
                     total_sales = takings;
                     minimum_selling_price = min_price;
                     std::cout << timestamp << " S " << total_sales << std::endl;
@@ -193,15 +194,15 @@ namespace pricer
             bool do_buy(false), do_sell(false);
             // removal
             bool clean_order(false);
-            Book::iterator str_order = orders.find(m.id);
-            double price = str_order->second->price;
-            int order_quantity = str_order->second->quantity;
+            Book::iterator id_order = orders.find(m.id);
+            double price = id_order->second->price;
+            int order_quantity = id_order->second->quantity;
             int deduction(m.quantity);
-            if(order_quantity <= m.quantity) { // fully remove
+            if(order_quantity <= m.quantity) { // fully remove from indices
                 clean_order = true;
                 deduction = order_quantity;
                 int k = static_cast<int>(price*100);
-                BookIndex *index = (str_order->second->type == 'A') ? &asks : &bids;
+                BookIndex *index = (id_order->second->type == 'S') ? &asks : &bids;
                 auto match = index->equal_range(k);
                 for(auto it=match.first; it!= match.second; ++it) { // remove matching
                     if(it->second->id == m.id) {
@@ -210,16 +211,17 @@ namespace pricer
                     }
                 }
             } else {
-                str_order->second->quantity -= deduction;
+                id_order->second->quantity -= deduction;
             }
-            if(str_order->second->type == 'S') {
+            if(id_order->second->type == 'S') {
                 total_asks -= deduction;
                 do_buy |=  price <= maximum_buying_price && total_purchases > 0;
             } else {
                 total_bids -= deduction;
                 do_sell |= price >= minimum_selling_price && total_sales > 0;
+                // TODO other end of logic problem
             }
-            if(clean_order) orders.erase(str_order);
+            if(clean_order) orders.erase(id_order);
             
             if(do_buy) return 1;
             if(do_sell) return 2;
@@ -245,14 +247,37 @@ namespace pricer
             int nmess = 0;
             for(const auto &m: messages) {
                 nmess += process_message(m);
+                //print();
             }
             return nmess;
         }
 
-        void print() {
-            for(auto &s_o: orders) {
-                s_o.second->print();
+        void print(int sel=0) {
+            std::cout << "----------------" << std::endl;
+            if(sel==0 || sel == 1) {
+                std::cout << "Book" << std::endl;
+                std::cout << "====" << std::endl;
+                for(auto &s_o: orders) {
+                    s_o.second->print();
+                }
             }
+            if(sel==0 || sel == 2) {
+                std::cout << "Asks" << std::endl;
+                std::cout << "====" << std::endl;
+                for(auto &s_o: asks) {
+                    std::cout << s_o.first << ": ";
+                    s_o.second->print();
+                }
+            }
+            if(sel==0 || sel == 3) {
+                std::cout << "Bids" << std::endl;
+                std::cout << "====" << std::endl;
+                for(auto &s_o: bids) {
+                    std::cout << s_o.first << ": ";
+                    s_o.second->print();
+                }
+            }
+            std::cout << "----------------" << std::endl;
         }
     };
 }
@@ -313,11 +338,10 @@ main(int argc, char** argv)
 
     total_time = (double)(end-start)/CLOCKS_PER_SEC;
 
-    std::cout << "Last message time: " <<  messages.back().timestamp << std::endl;
     //book.print();
-    //std::cout << "Parsed " << nlines << " lines successfully" << std::endl;
-    //std::cout << "Took " << total_time << " seconds" << std::endl;
-    //std::cout << (double)(nlines / total_time) << " lines per second" << std::endl;
+    std::cout << "Parsed " << nlines << " lines successfully" << std::endl;
+    std::cout << "Took " << total_time << " seconds" << std::endl;
+    std::cout << (double)(nlines / total_time) << " lines per second" << std::endl;
 
     return 0;
 }

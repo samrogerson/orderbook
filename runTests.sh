@@ -3,8 +3,8 @@
 bin="pricer.x"
 #g++ -std=c++11 -march=native -O2 -o ${bin} pricer.cpp
 
-#cat data/pricer.in | ./${bin} 10000
-head -n$1 data/pricer.in | ./${bin} $2
+cat data/pricer.in | ./${bin} 1
+#head -n$1 data/pricer.in | ./${bin} $2
 
 #sizes="1 200 10000"
 
