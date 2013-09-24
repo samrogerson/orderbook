@@ -9,13 +9,16 @@
 #include <boost/fusion/include/io.hpp>
 #include <boost/spirit/include/qi_lit.hpp>
 #include <boost/spirit/include/qi_hold.hpp>
+//#include <boost/phoenix/object/static_cast.hpp>
 
 #include <iostream>
 #include <string>
 #include <vector>
+#include <memory>
+#include <unordered_map>
+#include <map>
+
 #include <ctime>
-#include <iterator>
-#include <sstream>
 
 namespace pricer
 {
@@ -56,6 +59,7 @@ namespace pricer
             using qi::lexeme;
             using qi::attr;
             using ascii::char_;
+            using qi::_val;
 
             start %= qi::hold[int_
                 >>  char_
@@ -75,7 +79,53 @@ namespace pricer
         qi::rule<Iterator, message(), ascii::space_type> start;
     };
 
+    struct order {
+        char otype;
+        double price;
+        int quantity;
+
+        order(const char &t, const double &p, const int &q) : otype(t), price(p), quantity(q) {}
+    };
+
     struct orderbook {
+        typedef std::unordered_map<std::string, std::shared_ptr<order> > Book;
+        typedef std::multimap<int, std::shared_ptr<order> > BookIndex;
+        Book orders;
+        BookIndex asks, bids;
+        double minimum_selling_price, maximum_buying_price;
+
+        orderbook() : minimum_selling_price(-1), maximum_buying_price(0) {
+        }
+
+        bool process_message(const message &m) {
+            if(m.mtype=='A') {
+                // processing addition 
+                auto o = std::make_shared<order>(m.otype,m.price,m.quantity);
+                orders.insert({m.id,o});
+                if(m.otype=='A') {
+                    asks.insert({static_cast<int>(m.price*100),o});
+                } else {
+                    bids.insert({static_cast<int>(m.price*100),o});
+                }
+            } else {
+                Book::iterator o = orders.find(m.id);
+                //int prev_quantity = o->second->quantity;
+                //o->second->quantity = prev_quantity < m.quantity ? 0 : prev_quantity - m.quantity;
+                //if( prev_quantity < m.quantity) { // need to remove it from teh indices
+                    
+                //}
+                
+            }
+            return true;
+        }
+
+        int process_messages(const std::vector<message> &messages) {
+            int nmess = 0;
+            for(const auto &m: messages) {
+                nmess += process_message(m);
+            }
+            return nmess;
+        }
     };
 }
 
@@ -118,8 +168,10 @@ main()
     clock_t start, end;
     double total_time;
 
+    pricer::orderbook book;
     start=clock();
-    unsigned int nlines = fetch_messages(&messages);
+    fetch_messages(&messages);
+    unsigned int nlines = book.process_messages(messages);
     end=clock();
 
     total_time = (double)(end-start)/CLOCKS_PER_SEC;
