@@ -83,7 +83,6 @@ main()
     std::string str;
     str.reserve(32);
 
-    bool success = true;
     unsigned int nlines(0);
 
     clock_t start, end;
@@ -111,12 +110,7 @@ main()
     end=clock();
     total_time = (double)(end-start)/CLOCKS_PER_SEC;
 
-    if(success) {
-        std::cout << "Parsed " << nlines << " lines successfully" << std::endl;
-    } else {
-        std::cout << "Had error after " << nlines << " lines" << std::endl;
-    }
-
+    std::cout << "Parsed " << nlines << " lines successfully" << std::endl;
     std::cout << "Took " << total_time << " seconds" << std::endl;
     std::cout << (double)(nlines / total_time) << " lines per second" << std::endl;
 
