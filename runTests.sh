@@ -8,6 +8,7 @@ sizes="200"
 
 for size in ${sizes[@]}; 
 do
-    cat data/pricer.in | ./${bin} $size > test.out.$size
+    #cat data/pricer.in | ./${bin} $size > test.out.$size
+    head -n4384 data/pricer.in | ./${bin} $size > test.out.$size
     diff test.out.$size data/pricer.out.$size
 done
