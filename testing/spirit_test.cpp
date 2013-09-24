@@ -80,42 +80,75 @@ namespace pricer
     };
 
     struct order {
-        char otype;
+        char type;
         double price;
         int quantity;
+        std::string id;
 
-        order(const char &t, const double &p, const int &q) : otype(t), price(p), quantity(q) {}
+        order(const char &t, const double &p, const int &q, const std::string &s) : type(t),
+                price(p), quantity(q), id(s) {}
     };
 
     struct orderbook {
         typedef std::unordered_map<std::string, std::shared_ptr<order> > Book;
         typedef std::multimap<int, std::shared_ptr<order> > BookIndex;
+
         Book orders;
         BookIndex asks, bids;
         double minimum_selling_price, maximum_buying_price;
 
-        orderbook() : minimum_selling_price(-1), maximum_buying_price(0) {
+        orderbook() : minimum_selling_price(0), maximum_buying_price(0) {
+        }
+
+        void buy() {
+        }
+
+        void sell() {
+        }
+
+        bool remove_order(Book::iterator &o) {
+
         }
 
         bool process_message(const message &m) {
+            bool do_buy(false), do_sell(false);
             if(m.mtype=='A') {
                 // processing addition 
-                auto o = std::make_shared<order>(m.otype,m.price,m.quantity);
+                auto o = std::make_shared<order>(m.otype,m.price,m.quantity,m.id);
                 orders.insert({m.id,o});
                 if(m.otype=='A') {
                     asks.insert({static_cast<int>(m.price*100),o});
+                    do_buy |= m.price < maximum_buying_price && maximum_buying_price > 0;
                 } else {
                     bids.insert({static_cast<int>(m.price*100),o});
+                    do_sell |= m.price > minimum_selling_price && minimum_selling_price > 0;
                 }
             } else {
                 Book::iterator o = orders.find(m.id);
-                //int prev_quantity = o->second->quantity;
-                //o->second->quantity = prev_quantity < m.quantity ? 0 : prev_quantity - m.quantity;
-                //if( prev_quantity < m.quantity) { // need to remove it from teh indices
-                    
-                //}
-                
+                int prev_quantity = o->second->quantity;
+                if(o->second->quantity <= m.quantity) { // need to remove it from teh indices
+                    // fully remove
+                    double price = o->second->price;
+                    int k = static_cast<int>(o->second->price*100);
+                    BookIndex *index = (o->second->type == 'A') ? &asks : &bids;
+                    auto match = index->equal_range(k)
+                    for(auto it=match.first; it!= match.second; ++match) { // remove matching
+                        if(it->id == m.id) {
+                            index->erase(it);
+                            break;
+                        }
+                    }
+                    do_buy |= o->second->type =='A' && price < maximum_buying_price;
+                    do_sell |= o->second->type =='B' && price > minimum_selling_price;
+                    orders.erase(o);
+                } else {
+                    o->second->quantity -= m.quantity;
+                    do_buy |= o->second->type =='A' && price < maximum_buying_price;
+                    do_sell |= o->second->type =='B' && price > minimum_selling_price;
+                }
             }
+            if(do_buy) buy();
+            if(do_sell) sell();
             return true;
         }
 
