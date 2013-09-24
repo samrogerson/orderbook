@@ -16,7 +16,7 @@
 #include <ctime>
 #include <iterator>
 
-namespace client
+namespace pricer
 {
     namespace qi = boost::spirit::qi;
     namespace ascii = boost::spirit::ascii;
@@ -33,7 +33,7 @@ namespace client
 }
 
 BOOST_FUSION_ADAPT_STRUCT(
-    client::message,
+    pricer::message,
     (int, timestamp)
     (char, mtype)
     (std::string, id)
@@ -42,7 +42,7 @@ BOOST_FUSION_ADAPT_STRUCT(
     (int, quantity)
 )
 
-namespace client
+namespace pricer
 {
     template <typename Iterator>
     struct message_parser : qi::grammar<Iterator, message(), ascii::space_type>
@@ -77,7 +77,7 @@ main()
 {
     using boost::spirit::ascii::space;
     typedef std::string::const_iterator iterator_type;
-    typedef client::message_parser<iterator_type> message_parser;
+    typedef pricer::message_parser<iterator_type> message_parser;
 
     message_parser g;
     std::string str;
@@ -89,12 +89,12 @@ main()
     double total_time;
     start=clock();
     std::ios_base::sync_with_stdio (false);
-    std::vector<client::message> messages;
+    std::vector<pricer::message> messages;
     messages.reserve(2e6);
 
     while (getline(std::cin, str))
     {
-        client::message message;
+        pricer::message message;
         std::string::const_iterator iter = str.begin();
         std::string::const_iterator end = str.end();
         bool r = phrase_parse(iter, end, g, space, message);
