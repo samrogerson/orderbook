@@ -12,6 +12,7 @@
 
 #include <iostream>
 #include <string>
+#include <vector>
 #include <ctime>
 
 namespace client
@@ -88,13 +89,17 @@ main()
     double total_time;
     start=clock();
     std::ios_base::sync_with_stdio (false);
+    std::vector<client::message> messages;
+    messages.reserve(2e6);
+
     while (getline(std::cin, str))
     {
         client::message message;
         std::string::const_iterator iter = str.begin();
         std::string::const_iterator end = str.end();
         bool r = phrase_parse(iter, end, g, space, message);
-
+        messages.push_back(message);
+        
         if (r && iter == end) {
             nlines++;
         } else {
@@ -113,6 +118,14 @@ main()
 
     std::cout << "Took " << total_time << " seconds" << std::endl;
     std::cout << (double)(nlines / total_time) << " lines per second" << std::endl;
+
+    std::cout << "Final Line"  <<  std::endl <<
+                 "=========="  <<  std::endl <<
+                 "Timestamp: " <<  messages.back().timestamp << std::endl <<
+                 "mtype:     " <<  messages.back().mtype     << std::endl <<
+                 "id:        " <<  messages.back().id        << std::endl <<
+                 "otype:     " <<  messages.back().otype     << std::endl <<
+                 "quantity:  " <<  messages.back().quantity  << std::endl;
 
     return 0;
 }
