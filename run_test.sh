@@ -3,7 +3,7 @@
 bin="pricer.x"
 if [[ ! -f ${bin} ]]
 then
-    echo -n "Compiling... "
+    echo -n "Compiling main binary... "
     g++ -std=c++11 -march=native -O2 -o ${bin} pricer.cpp
     echo "Done."
 fi
@@ -11,7 +11,9 @@ fi
 prof="pricer_prof.x"
 if [[ ! -f ${prof} ]]
 then
+    echo -n "Compiling profiling binary... "
     g++ -pg -std=c++11 -march=native -O2 -o ${prof} pricer.cpp
+    echo "Done."
 fi
 
 sizes="1 200 10000"
