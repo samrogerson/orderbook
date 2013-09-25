@@ -2,3 +2,4 @@
 *.x
 data/
 test.out.*
+analysis.txt
