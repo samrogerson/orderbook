@@ -25,7 +25,10 @@ echo "---------------------------"
 for size in ${sizes[@]}; 
 do
     cat ${data} | ./${bin} $size > test.out.$size
-    diff test.out.$size data/pricer.out.$size
+    if [[ -f data/price.out.$size ]];
+    then
+        diff test.out.$size data/pricer.out.$size
+    fi
 done
 echo "---------------------------"
 echo
