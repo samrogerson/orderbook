@@ -88,22 +88,29 @@ namespace pricer
     };
 
     struct orderbook {
-        typedef std::unordered_map<std::string, std::shared_ptr<order> > Book;
-        typedef std::multimap<int, std::shared_ptr<order> > BookIndex;
-        
+        typedef std::unordered_map<std::string, std::shared_ptr<order> > book;
+        typedef std::multimap<int, std::shared_ptr<order> > bookindex;
+
+     private:    
         int target_size, total_asks, total_bids;
         double minimum_selling_price, maximum_buying_price, total_sales, total_purchases;
 
-        Book orders;
-        BookIndex asks, bids;
+        book orders;
+        bookindex asks, bids;
         
         std::ostringstream outstream;
 
+     public:
         orderbook(int ts) : minimum_selling_price(0), maximum_buying_price(0), total_asks(0),
                 total_bids(0), total_sales(0), total_purchases(0), target_size(ts) {
             outstream.precision(2);
             outstream << std::fixed;
         } 
+
+        // note: buy() & sell() only get called internally when process_<>_order
+        // determines that the order processed may affect the positions (through
+        // minimum_selling_price and maximum_buying_price as well as teh
+        // total_asks and bids
 
         // print the contents of outstream to stdout and reset it
         void communicate();
@@ -125,14 +132,16 @@ namespace pricer
         int process_messages(const std::vector<message> &, int);
     };
 
-    void orderbook::communicate() {
+    void
+    orderbook::communicate() {
         if( outstream.tellp() > 0 ) {
             std::cout << outstream.str() << std::flush;
             outstream.str(std::string());
         }
     }
 
-    void orderbook::buy(int timestamp) {
+    void
+    orderbook::buy(int timestamp) {
         bool sufficient_stock = total_asks >= target_size;
         bool have_bought = total_purchases > 0;
         if(!sufficient_stock && have_bought) {
@@ -140,7 +149,7 @@ namespace pricer
             total_purchases = 0;
             outstream << timestamp << " B NA" <<  std::endl;
         } else if(sufficient_stock) {
-            BookIndex::iterator it = asks.begin(); 
+            bookindex::iterator it = asks.begin(); 
             int bought(0);
             double cost(0);
             double max_price(0);
@@ -160,7 +169,8 @@ namespace pricer
         }
     }
 
-    void orderbook::sell(int timestamp) {
+    void
+    orderbook::sell(int timestamp) {
         bool sufficient_stock = total_bids >= target_size;
         bool have_sold = total_sales > 0;
 
@@ -168,8 +178,8 @@ namespace pricer
             total_sales = 0;
             minimum_selling_price = 0;
             outstream << timestamp << " S NA" <<  std::endl;
-        } else if(sufficient_stock) { 
-            BookIndex::reverse_iterator it = bids.rbegin(); 
+        } else if(sufficient_stock) {  // sufficient stock on the market so check optimal buy
+            bookindex::reverse_iterator it = bids.rbegin(); 
             int sold(0);
             double takings(0);
             double min_price(it->second->price);
@@ -181,8 +191,7 @@ namespace pricer
                 sold += to_sell;
                 ++it;
             }
-            int diff = floor(takings*100. + 0.5) - floor(total_sales*100. + 0.5);
-            if(diff !=0) {
+            if(floor(takings*100. + 0.5) - floor(total_sales*100. + 0.5) !=0) {
                 total_sales = takings;
                 minimum_selling_price = min_price;
                 outstream << timestamp << " S " << total_sales << std::endl;
@@ -190,7 +199,8 @@ namespace pricer
         }
     }
 
-    action orderbook::process_add_order(const message &m) {
+    action
+    orderbook::process_add_order(const message &m) {
         bool do_buy(false), do_sell(false);
         // processing addition 
         auto o = std::make_shared<order>(m.otype,m.price,m.quantity,m.id);
@@ -210,11 +220,12 @@ namespace pricer
         return action::none;
     }
 
-    action orderbook::process_removal_order(const message &m) {
+    action
+    orderbook::process_removal_order(const message &m) {
         bool do_buy(false), do_sell(false);
         // removal
         bool clean_order(false);
-        Book::iterator id_order = orders.find(m.id);
+        book::iterator id_order = orders.find(m.id);
         double price = id_order->second->price;
         int order_quantity(id_order->second->quantity);
         int deduction(m.quantity);
@@ -222,7 +233,7 @@ namespace pricer
             clean_order = true;
             deduction = order_quantity;
             int k = floor(price*100 + 0.5);
-            BookIndex *index = (id_order->second->type == 'S') ? &asks : &bids;
+            bookindex *index = (id_order->second->type == 'S') ? &asks : &bids;
             auto match = index->equal_range(k);
             for(auto it=match.first; it!= match.second; ++it) { // remove matching
                 if(it->second->id == m.id) {
@@ -247,7 +258,8 @@ namespace pricer
         return action::none;
     }
 
-    void orderbook::process_message(const message &m) {
+    void
+    orderbook::process_message(const message &m) {
         action a;
         if(m.mtype=='A') {
             a = process_add_order(m);
@@ -261,7 +273,8 @@ namespace pricer
         }
     }
 
-    int orderbook::process_messages(const std::vector<message> &messages, int buffer_messages=1000){
+    int
+    orderbook::process_messages(const std::vector<message> &messages, int buffer_messages=1000) {
         int nmess = 0;
         for(const auto &m: messages) {
             process_message(m);
@@ -275,7 +288,8 @@ namespace pricer
     }
 }
 
-std::ostream& operator<< (std::ostream& os, const pricer::message& m) {
+std::ostream&
+operator<< (std::ostream& os, const pricer::message& m) {
     return os << "(" << m.timestamp << " " << m.mtype << " " << m.id << " " << 
         m.otype << " " << m.price << " " << m.quantity << ")";
 }
