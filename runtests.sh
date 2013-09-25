@@ -30,7 +30,7 @@ done
 echo "---------------------------"
 echo
 
-echo -n "Profiling... "
-cat ${data} | ./${prof} 10000 > test.out.10000.prof
-gprof ./pricer_prof.x gmon.out > analysis.txt
-echo "Done."
+#echo -n "Profiling... "
+#cat ${data} | ./${prof} 10000 > test.out.10000.prof
+#gprof ./pricer_prof.x gmon.out > analysis.txt
+#echo "Done."
