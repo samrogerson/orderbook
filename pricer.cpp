@@ -101,8 +101,9 @@ namespace pricer
         std::ostringstream outstream;
 
      public:
-        orderbook(int ts) : minimum_selling_price(0), maximum_buying_price(0), total_asks(0),
-                total_bids(0), total_sales(0), total_purchases(0), target_size(ts) {
+        orderbook(int ts) :  target_size(ts), total_asks(0), total_bids(0),
+                minimum_selling_price(0), maximum_buying_price(0), total_sales(0),
+                total_purchases(0){
             outstream.precision(2);
             outstream << std::fixed;
         } 

@@ -4,7 +4,7 @@ bin="pricer.x"
 if [[ ! -f ${bin} ]]
 then
     echo -n "Compiling main binary... "
-    g++ -std=c++11 -march=native -O2 -o ${bin} pricer.cpp
+    g++ -Wall -std=c++11 -march=native -O2 -o ${bin} pricer.cpp
     echo "Done."
 fi
 
