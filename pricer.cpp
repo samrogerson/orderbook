@@ -109,9 +109,14 @@ namespace pricer
         double minimum_selling_price, maximum_buying_price, total_sales, total_purchases;
         Book orders;
         BookIndex asks, bids;
+        
+        std::ostringstream outstream;
 
         orderbook(int ts) : minimum_selling_price(0), maximum_buying_price(0), total_asks(0),
-                total_bids(0), total_sales(0), total_purchases(0), target_size(ts) { } 
+                total_bids(0), total_sales(0), total_purchases(0), target_size(ts) {
+            outstream.precision(2);
+            outstream << std::fixed;
+        } 
 
         void buy(int timestamp) {
             bool sufficient_stock = total_asks >= target_size;
@@ -119,7 +124,8 @@ namespace pricer
             if(!sufficient_stock && have_bought) {
                 maximum_buying_price = 0;
                 total_purchases = 0;
-                std::cout << timestamp << " B NA" <<  std::endl;
+                //std::cout << timestamp << " B NA" <<  std::endl;
+                outstream << timestamp << " B NA" <<  std::endl;
             } else if(sufficient_stock) {
                 BookIndex::iterator it = asks.begin(); 
                 int bought(0);
@@ -136,7 +142,8 @@ namespace pricer
                 if(floor(cost*100 + 0.5) - floor(total_purchases*100 + 0.5) != 0) {
                     total_purchases = cost;
                     maximum_buying_price = max_price;
-                    std::cout << timestamp << " B " << total_purchases << std::endl;
+                    //std::cout << timestamp << " B " << total_purchases << std::endl;
+                    outstream << timestamp << " B " << total_purchases << std::endl;
                 }
             }
         }
@@ -148,7 +155,8 @@ namespace pricer
             if(!sufficient_stock && have_sold) {
                 total_sales = 0;
                 minimum_selling_price = 0;
-                std::cout << timestamp << " S NA" <<  std::endl;
+                //std::cout << timestamp << " S NA" <<  std::endl;
+                outstream << timestamp << " S NA" <<  std::endl;
             } else if(sufficient_stock) { 
                 BookIndex::reverse_iterator it = bids.rbegin(); 
                 int sold(0);
@@ -166,7 +174,8 @@ namespace pricer
                 if(diff !=0) {
                     total_sales = takings;
                     minimum_selling_price = min_price;
-                    std::cout << timestamp << " S " << total_sales << std::endl;
+                    //std::cout << timestamp << " S " << total_sales << std::endl;
+                    outstream << timestamp << " S " << total_sales << std::endl;
                 }
             }
         }
@@ -247,6 +256,14 @@ namespace pricer
             int nmess = 0;
             for(const auto &m: messages) {
                 nmess += process_message(m);
+                if( nmess % 1000 == 0 ) {
+                    std::cout << outstream.str() << std::flush;
+                    outstream.str(std::string());
+                }
+            }
+            if( outstream.tellp() > 0 ) {
+                std::cout << outstream.str() << std::flush;
+                outstream.str(std::string());
             }
             return nmess;
         }
@@ -272,7 +289,6 @@ fetch_messages(std::vector<pricer::message>* messages, int nmessages=2e6) {
     str.reserve(32);
 
     unsigned int parsed_messages(0);
-    std::ios_base::sync_with_stdio (false);
     while (getline(std::cin, str))
     {
         pricer::message message;
@@ -299,6 +315,7 @@ main(int argc, char** argv)
     }
     int target_size = atoi(argv[1]);
 
+    std::ios_base::sync_with_stdio (false);
     std::cout << std::fixed;
     std::cout.precision(2);
 
